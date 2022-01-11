@@ -2,6 +2,7 @@
 members = [
     'node',
     'pallets/player',
+    'pallets/hero',
     'runtime',
 ]
 [profile.release]

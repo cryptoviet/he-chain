@@ -87,7 +87,7 @@ pub mod pallet {
 
 		#[pallet::weight(100)]
 		pub fn new_player(origin: OriginFor<T>, username: [u8; 16]) -> DispatchResult{
-			Self::is_username(username)?;
+			Self::is_username_available(username)?;
 			let sender = ensure_signed(origin)?;
 			Self::create_new_player(&sender, username)?;
 			Ok(())
@@ -99,7 +99,7 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 
-		pub fn is_username(username: [u8; 16]) -> Result<bool, Error<T>> {
+		pub fn is_username_available(username: [u8; 16]) -> Result<bool, Error<T>> {
 			match Self::username(username) {
 				Some(_) => Err(<Error<T>>::UsernameUsed),
 				None => Ok(true),
