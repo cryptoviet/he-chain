@@ -26,7 +26,6 @@ pub mod pallet {
 	pub struct Hero<T: Config> {
 		id: [u8; 32],
 		owner: AccountOf<T>,
-		name: [u8; 16],
 		species: Species,
 		class: Class,
 		tier: Tier,
@@ -96,7 +95,7 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		NewHeroMinted(T::AccountId, [u8; 16], [u8; 32]),
+		NewHeroMinted(T::AccountId, [u8; 32]),
 	}
 
 	#[pallet::storage]
@@ -117,10 +116,10 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 
 		#[pallet::weight(100)]
-		pub fn mint(origin: OriginFor<T>, name: [u8; 16]) -> DispatchResult{
+		pub fn mint(origin: OriginFor<T>) -> DispatchResult{
 			let sender = ensure_signed(origin)?;
-			let id = Self::mint_hero(sender.clone(), name)?;
-			Self::deposit_event(Event::NewHeroMinted(sender, name, id));
+			let id = Self::mint_hero(sender.clone())?;
+			Self::deposit_event(Event::NewHeroMinted(sender, id));
 			Ok(())
 		}
 	}
@@ -130,7 +129,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 
 		#[transactional]
-		pub fn mint_hero(sender: T::AccountId, name: [u8; 16]) -> Result<[u8; 32], Error<T>> {
+		pub fn mint_hero(sender: T::AccountId) -> Result<[u8; 32], Error<T>> {
 			let id = Self::gen_id()?;
 			Self::is_id_available(id)?;
 
@@ -141,7 +140,6 @@ pub mod pallet {
 			let hero = Hero::<T> {
 				id,
 				owner: sender.clone(),
-				name,
 				species: Species::Demon,
 				class: Class::Assassin,
 				tier: Tier::Common,
@@ -152,7 +150,6 @@ pub mod pallet {
 			<Heroes<T>>::insert(id, hero);
 			let new_hero_cnt = Self::hero_cnt().checked_add(1).ok_or(<Error<T>>::HeroOverflow)?;
 			<HeroCnt<T>>::put(new_hero_cnt);
-
 			Ok(id)
 		}
 

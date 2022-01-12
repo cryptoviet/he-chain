@@ -43,6 +43,7 @@ pub use sp_runtime::{Perbill, Permill};
 /// Import the template pallet.
 pub use pallet_player;
 pub use pallet_hero;
+pub use pallet_game;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -292,6 +293,23 @@ impl pallet_hero::Config for Runtime {
 	type HeroRandomness = RandomnessCollectiveFlip;
 }
 
+parameter_types! {
+	pub const MaxPlayer: u32 = 10;
+	pub const MaxGame: u32 = 10;
+	pub const MaxOpenGame: u32 = 10;
+	pub const MaxStartGame: u32 = 10;
+}
+
+impl pallet_game::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type MaxPlayer = MaxPlayer;
+	type MaxGame = MaxGame;
+	type MaxOpenGame = MaxOpenGame;
+	type MaxStartGame = MaxStartGame;
+	type GameRandomness = RandomnessCollectiveFlip;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -310,6 +328,7 @@ construct_runtime!(
 		// Include the custom logic from the pallet-template in the runtime.
 		Player: pallet_player,
 		Hero: pallet_hero,
+		Game: pallet_game,
 	}
 );
 
