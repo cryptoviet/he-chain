@@ -88,6 +88,7 @@ pub mod pallet {
 		PlayersNotFound,
 		PlayerNotPlaying,
 		YouAreInGame,
+		ExceedGameHosting,
 	}
 
 	// Events.
@@ -117,11 +118,9 @@ pub mod pallet {
 	#[pallet::getter(fn game_start)]
 	pub(super) type GameStart<T: Config> =
 		StorageValue<_, BoundedVec<ID, T::MaxStartGame>, ValueQuery>;
-
 	#[pallet::storage]
 	#[pallet::getter(fn games)]
 	pub(super) type Games<T: Config> = StorageMap<_, Twox64Concat, ID, Game<T>>;
-
 	#[pallet::storage]
 	#[pallet::getter(fn players)]
 	pub(super) type Players<T: Config> =
@@ -130,46 +129,9 @@ pub mod pallet {
 	#[pallet::getter(fn game_playing)]
 	pub(super) type GamePlaying<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, ID>;
 
-	#[pallet::call]
-	impl<T: Config> Pallet<T> {
-		#[pallet::weight(100)]
-		pub fn open(
-			origin: OriginFor<T>,
-			number_of_player: u8,
-			ticket: BalanceOf<T>,
-		) -> DispatchResult {
-			let sender = ensure_signed(origin)?;
-			let id = Self::open_game(sender.clone(), number_of_player, ticket)?;
-			let open_game_fee = Self::open_game_fee();
-			T::Currency::withdraw(
-				&sender,
-				open_game_fee,
-				WithdrawReasons::RESERVE,
-				ExistenceRequirement::KeepAlive,
-			)?;
-			Self::deposit_event(Event::NewGameOpen(id, sender, number_of_player, ticket));
-			Ok(())
-		}
-
-		#[pallet::weight(100)]
-		pub fn join(origin: OriginFor<T>, game_id: ID) -> DispatchResult {
-			let sender = ensure_signed(origin)?;
-			let game = Self::join_game(sender.clone(), &game_id)?;
-			T::Currency::withdraw(
-				&sender,
-				game.ticket,
-				WithdrawReasons::RESERVE,
-				ExistenceRequirement::KeepAlive,
-			)?;
-			Self::deposit_event(Event::PlayerJoinGame(sender, game_id));
-			Ok(())
-		}
-
-		#[pallet::weight(100)]
-		pub fn left(origin: OriginFor<T>) -> DispatchResult {
-			Ok(())
-		}
-	}
+	#[pallet::storage]
+	#[pallet::getter(fn game_hosting)]
+	pub(super) type GameHosting<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, ID>;
 
 	//** Genesis Conguration **//
 	#[pallet::genesis_config]
@@ -191,6 +153,53 @@ pub mod pallet {
 		}
 	}
 
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {
+		#[pallet::weight(100)]
+		pub fn open(
+			origin: OriginFor<T>,
+			number_of_player: u8,
+			ticket: BalanceOf<T>,
+		) -> DispatchResult {
+			let sender = ensure_signed(origin)?;
+			let id = Self::open_game(sender.clone(), number_of_player, ticket)?;
+			Self::charge_fee_open_game(&sender)?;
+			Self::deposit_event(Event::NewGameOpen(id, sender, number_of_player, ticket));
+			Ok(())
+		}
+
+		#[pallet::weight(100)]
+		pub fn join(origin: OriginFor<T>, game_id: ID) -> DispatchResult {
+			let sender = ensure_signed(origin)?;
+			let game = Self::join_game(sender.clone(), &game_id)?;
+			Self::charge_join_game(&sender, game.ticket)?;
+			Self::deposit_event(Event::PlayerJoinGame(sender, game_id));
+			Ok(())
+		}
+
+		#[pallet::weight(100)]
+		pub fn open_and_join(
+			origin: OriginFor<T>,
+			number_of_player: u8,
+			ticket: BalanceOf<T>,
+		) -> DispatchResult {
+			let sender = ensure_signed(origin)?;
+			let id = Self::open_game(sender.clone(), number_of_player, ticket)?;
+			Self::charge_fee_open_game(&sender)?;
+			Self::deposit_event(Event::NewGameOpen(id, sender.clone(), number_of_player, ticket));
+
+			let game = Self::join_game(sender.clone(), &id)?;
+			Self::charge_join_game(&sender, game.ticket)?;
+			Self::deposit_event(Event::PlayerJoinGame(sender, id));
+			Ok(())
+		}
+
+		#[pallet::weight(100)]
+		pub fn left(origin: OriginFor<T>) -> DispatchResult {
+			Ok(())
+		}
+	}
+
 	//** Our helper functions.**//
 
 	impl<T: Config> Pallet<T> {
@@ -200,6 +209,7 @@ pub mod pallet {
 			number_of_player: u8,
 			ticket: BalanceOf<T>,
 		) -> Result<ID, Error<T>> {
+			Self::is_host_available(&sender)?;
 			let new_game_cnt = Self::game_cnt().checked_add(1).ok_or(<Error<T>>::GameOverflow)?;
 			<GameCnt<T>>::put(new_game_cnt);
 			let id = Self::gen_id()?;
@@ -211,9 +221,11 @@ pub mod pallet {
 				ticket,
 				status: GameStatus::Open,
 			};
+
 			<GameOpen<T>>::try_mutate(|game_open| game_open.try_push(id))
 				.map_err(|_| <Error<T>>::ExceedGameOpen)?;
 			<Games<T>>::insert(id, game);
+			<GameHosting<T>>::insert(sender, id);
 			Ok(id)
 		}
 
@@ -251,6 +263,35 @@ pub mod pallet {
 			Ok(())
 		}
 
+		pub fn charge_join_game(sender: &T::AccountId, ticket: BalanceOf<T>) -> DispatchResult {
+			let withdraw = T::Currency::withdraw(
+				&sender,
+				ticket,
+				WithdrawReasons::RESERVE,
+				ExistenceRequirement::KeepAlive,
+			);
+
+			match withdraw {
+				Ok(_) => Ok(()),
+				Err(err) => Err(err),
+			}
+		}
+
+		pub fn charge_fee_open_game(sender: &T::AccountId) -> DispatchResult {
+			let open_game_fee = Self::open_game_fee();
+			let withdraw = T::Currency::withdraw(
+				&sender,
+				open_game_fee,
+				WithdrawReasons::RESERVE,
+				ExistenceRequirement::KeepAlive,
+			);
+
+			match withdraw {
+				Ok(_) => Ok(()),
+				Err(err) => Err(err),
+			}
+		}
+
 		pub fn gen_id() -> Result<ID, Error<T>> {
 			let payload =
 				(T::GameRandomness::random(&b""[..]).0, <frame_system::Pallet<T>>::block_number());
@@ -274,6 +315,13 @@ pub mod pallet {
 		pub fn is_player_available(player: &T::AccountId) -> Result<bool, Error<T>> {
 			match Self::game_playing(player) {
 				Some(_) => Err(<Error<T>>::YouAreInGame),
+				None => Ok(true),
+			}
+		}
+
+		pub fn is_host_available(player: &T::AccountId) -> Result<bool, Error<T>> {
+			match Self::game_hosting(player) {
+				Some(_) => Err(<Error<T>>::ExceedGameHosting),
 				None => Ok(true),
 			}
 		}

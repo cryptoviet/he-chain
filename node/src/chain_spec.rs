@@ -1,6 +1,6 @@
 use node_template_runtime::{
 	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, Signature, SudoConfig,
-	SystemConfig, WASM_BINARY,
+	SystemConfig, WASM_BINARY, Balance, GameConfig
 };
 use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -130,6 +130,9 @@ fn testnet_genesis(
 	endowed_accounts: Vec<AccountId>,
 	_enable_println: bool,
 ) -> GenesisConfig {
+
+	const OPEN_FEE: Balance = 10000000000000000;
+
 	GenesisConfig {
 		system: SystemConfig {
 			// Add Wasm runtime to storage.
@@ -150,5 +153,8 @@ fn testnet_genesis(
 			key: root_key,
 		},
 		transaction_payment: Default::default(),
+		game: GameConfig {
+			open_fee: OPEN_FEE,
+		}
 	}
 }
