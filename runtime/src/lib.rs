@@ -298,6 +298,7 @@ parameter_types! {
 	pub const MaxGame: u32 = 10;
 	pub const MaxOpenGame: u32 = 10;
 	pub const MaxStartGame: u32 = 10;
+	pub const OpenGameFee: u32 = 1000000000u32;
 }
 
 impl pallet_game::Config for Runtime {
@@ -307,6 +308,7 @@ impl pallet_game::Config for Runtime {
 	type MaxGame = MaxGame;
 	type MaxOpenGame = MaxOpenGame;
 	type MaxStartGame = MaxStartGame;
+	type OpenGameFee = OpenGameFee;
 	type GameRandomness = RandomnessCollectiveFlip;
 }
 

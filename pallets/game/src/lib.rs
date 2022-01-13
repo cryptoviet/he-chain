@@ -7,10 +7,12 @@ pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*,
 		sp_runtime::traits::Hash,
-		traits::{tokens::ExistenceRequirement, tokens::WithdrawReasons, Currency, Randomness},
+		traits::{
+			tokens::{ExistenceRequirement, WithdrawReasons},
+			Currency, Randomness,
+		},
 		transactional,
 	};
-	
 	use frame_system::pallet_prelude::*;
 	use sp_io::hashing::blake2_256;
 
@@ -53,7 +55,6 @@ pub mod pallet {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		/// The Currency handler for the Kitties pallet.
 		type Currency: Currency<Self::AccountId>;
 
 		type GameRandomness: Randomness<Self::Hash, Self::BlockNumber>;
@@ -69,6 +70,9 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MaxStartGame: Get<u32>;
+
+		#[pallet::constant]
+		type OpenGameFee: Get<u32>;
 	}
 
 	// Errors.
@@ -77,11 +81,12 @@ pub mod pallet {
 		GameNotExist,
 		GameNotOpen,
 		GameIdUsed,
-		ExceedGameOpen,
 		GameOverflow,
+		ExceedGameOpen,
 		PlayerExceed,
 		PlayersOverflow,
 		PlayersNotFound,
+		PlayerNotPlaying,
 		YouAreInGame,
 	}
 
@@ -98,6 +103,10 @@ pub mod pallet {
 	pub(super) type GameCnt<T: Config> = StorageValue<_, u64, ValueQuery>;
 
 	// ACTION #7: Remaining storage items.
+
+	#[pallet::storage]
+	#[pallet::getter(fn open_game_fee)]
+	pub(super) type OpenGameFee<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn game_open)]
@@ -117,11 +126,9 @@ pub mod pallet {
 	#[pallet::getter(fn players)]
 	pub(super) type Players<T: Config> =
 		StorageMap<_, Twox64Concat, ID, BoundedVec<T::AccountId, T::MaxPlayer>, ValueQuery>;
-	
 	#[pallet::storage]
 	#[pallet::getter(fn game_playing)]
-	pub(super) type GamePlaying <T: Config> = 
-		StorageMap<_, Twox64Concat, T::AccountId, ID>;
+	pub(super) type GamePlaying<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, ID>;
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -133,7 +140,13 @@ pub mod pallet {
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			let id = Self::open_game(sender.clone(), number_of_player, ticket)?;
-			T::Currency::withdraw(&sender, ticket, WithdrawReasons::RESERVE, ExistenceRequirement::KeepAlive)?;
+			let open_game_fee = Self::open_game_fee();
+			T::Currency::withdraw(
+				&sender,
+				open_game_fee,
+				WithdrawReasons::RESERVE,
+				ExistenceRequirement::KeepAlive,
+			)?;
 			Self::deposit_event(Event::NewGameOpen(id, sender, number_of_player, ticket));
 			Ok(())
 		}
@@ -142,64 +155,100 @@ pub mod pallet {
 		pub fn join(origin: OriginFor<T>, game_id: ID) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			let game = Self::join_game(sender.clone(), &game_id)?;
-			T::Currency::withdraw(&sender, game.ticket, WithdrawReasons::RESERVE, ExistenceRequirement::KeepAlive)?;
+			T::Currency::withdraw(
+				&sender,
+				game.ticket,
+				WithdrawReasons::RESERVE,
+				ExistenceRequirement::KeepAlive,
+			)?;
 			Self::deposit_event(Event::PlayerJoinGame(sender, game_id));
 			Ok(())
 		}
 
 		#[pallet::weight(100)]
 		pub fn left(origin: OriginFor<T>) -> DispatchResult {
-
 			Ok(())
+		}
+	}
+
+	//** Genesis Conguration **//
+	#[pallet::genesis_config]
+	pub struct GenesisConfig<T: Config> {
+		pub open_fee: BalanceOf<T>,
+	}
+
+	#[cfg(feature = "std")]
+	impl<T: Config> Default for GenesisConfig<T> {
+		fn default() -> Self {
+			Self { open_fee: Default::default() }
+		}
+	}
+
+	#[pallet::genesis_build]
+	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+		fn build(&self) {
+			<OpenGameFee<T>>::put(self.open_fee);
 		}
 	}
 
 	//** Our helper functions.**//
 
 	impl<T: Config> Pallet<T> {
-
 		#[transactional]
 		pub fn open_game(
 			sender: T::AccountId,
 			number_of_player: u8,
 			ticket: BalanceOf<T>,
 		) -> Result<ID, Error<T>> {
-
-			Self::is_player_available(&sender)?;
-			
 			let new_game_cnt = Self::game_cnt().checked_add(1).ok_or(<Error<T>>::GameOverflow)?;
 			<GameCnt<T>>::put(new_game_cnt);
-			
 			let id = Self::gen_id()?;
 			Self::is_id_available(id)?;
-			let game =
-			Game::<T> { id, host: sender.clone(), number_of_player, ticket, status: GameStatus::Open };
+			let game = Game::<T> {
+				id,
+				host: sender.clone(),
+				number_of_player,
+				ticket,
+				status: GameStatus::Open,
+			};
 			<GameOpen<T>>::try_mutate(|game_open| game_open.try_push(id))
-			.map_err(|_| <Error<T>>::ExceedGameOpen)?;
-			<GamePlaying<T>>::insert(sender, id);
+				.map_err(|_| <Error<T>>::ExceedGameOpen)?;
 			<Games<T>>::insert(id, game);
 			Ok(id)
 		}
 
 		#[transactional]
-		pub fn join_game(sender: T::AccountId, game_id: &ID) -> Result<Game<T>, Error<T>>{
-
+		pub fn join_game(sender: T::AccountId, game_id: &ID) -> Result<Game<T>, Error<T>> {
 			// make sure game id exsit
 			let game = Self::get_game(game_id)?;
 			ensure!(game.status == GameStatus::Open, <Error<T>>::GameNotOpen);
 
 			// make sute player not playing
 			Self::is_player_available(&sender)?;
-
-			// make sure number allowed is good
-			let players = <Players<T>>::get(game_id);
-			ensure!(players.len() < game.number_of_player.into(), <Error<T>>::PlayerExceed);
-
-			<Players<T>>::try_mutate(game_id, |player_vec| {
-					player_vec.try_push(sender.clone())
-			}).map_err(|_| <Error<T>>::PlayersOverflow)?;
-			<GamePlaying<T>>::insert(sender, game_id);
+			Self::player_join_game(sender, &game)?;
 			Ok(game)
+		}
+
+		pub fn player_join_game(sender: T::AccountId, game: &Game<T>) -> Result<(), Error<T>> {
+			let players = <Players<T>>::get(game.id);
+			ensure!(players.len() < game.number_of_player.into(), <Error<T>>::PlayerExceed);
+			<Players<T>>::try_mutate(game.id, |player_vec| player_vec.try_push(sender.clone()))
+				.map_err(|_| <Error<T>>::PlayersOverflow)?;
+			<GamePlaying<T>>::insert(sender.clone(), game.id);
+			Ok(())
+		}
+
+		#[transactional]
+		pub fn left_game(sender: T::AccountId) -> Result<(), Error<T>> {
+			let game_id = Self::get_game_playing(&sender)?;
+			let game = Self::get_game(&game_id)?;
+
+			// make sure game status is open
+			ensure!(game.status == GameStatus::Open, <Error<T>>::GameNotOpen);
+
+			let players = <Players<T>>::get(game_id);
+
+			Ok(())
 		}
 
 		pub fn gen_id() -> Result<ID, Error<T>> {
@@ -218,7 +267,7 @@ pub mod pallet {
 		pub fn get_game(id: &ID) -> Result<Game<T>, Error<T>> {
 			match Self::games(id) {
 				Some(game) => Ok(game),
-				None => Err(<Error<T>>::GameIdUsed),
+				None => Err(<Error<T>>::GameNotExist),
 			}
 		}
 
@@ -228,6 +277,12 @@ pub mod pallet {
 				None => Ok(true),
 			}
 		}
-		
+
+		pub fn get_game_playing(player: &T::AccountId) -> Result<ID, Error<T>> {
+			match Self::game_playing(player) {
+				Some(id) => Ok(id),
+				None => Err(<Error<T>>::PlayerNotPlaying),
+			}
+		}
 	}
 }
