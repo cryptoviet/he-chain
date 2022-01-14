@@ -132,6 +132,7 @@ fn testnet_genesis(
 ) -> GenesisConfig {
 
 	const OPEN_FEE: Balance = 10000000000000000;
+	const MAX_GOMOKU_PLAYER: u8 = 2u8;
 
 	GenesisConfig {
 		system: SystemConfig {
@@ -155,6 +156,7 @@ fn testnet_genesis(
 		transaction_payment: Default::default(),
 		game: GameConfig {
 			open_fee: OPEN_FEE,
+			max_gomoku_player: MAX_GOMOKU_PLAYER,
 		}
 	}
 }

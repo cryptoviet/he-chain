@@ -294,7 +294,7 @@ impl pallet_hero::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxPlayer: u32 = 10;
+	pub const MaxGomokuPlayer: u32 = 2;
 	pub const MaxGame: u32 = 10;
 	pub const MaxOpenGame: u32 = 10;
 	pub const MaxStartGame: u32 = 10;
@@ -304,7 +304,7 @@ parameter_types! {
 impl pallet_game::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
-	type MaxPlayer = MaxPlayer;
+	type MaxGomokuPlayer = MaxGomokuPlayer;
 	type MaxGame = MaxGame;
 	type MaxOpenGame = MaxOpenGame;
 	type MaxStartGame = MaxStartGame;
