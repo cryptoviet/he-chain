@@ -2,6 +2,12 @@
 
 pub use pallet::*;
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::{
@@ -27,8 +33,8 @@ pub mod pallet {
 	pub struct Player<T: Config> {
 		pub owner: AccountOf<T>,
 		pub username: [u8; 16],
-        pub level: u32,
-        pub exp: u32,
+		pub level: u32,
+		pub exp: u32,
 	}
 
 	// ACTION #2: Enum declaration for Gender.
@@ -47,7 +53,6 @@ pub mod pallet {
 
 		/// The Currency handler for the Kitties pallet.
 		type Currency: Currency<Self::AccountId>;
-        
 
 		// ACTION #5: Specify the type for Randomness we want to specify for runtime.
 
@@ -65,16 +70,16 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		PlayerCreated(T::AccountId, [u8;16])
+		PlayerCreated(T::AccountId, [u8; 16]),
 	}
 
 	#[pallet::storage]
 	#[pallet::getter(fn player_cnt)]
 	pub(super) type PlayerCnt<T: Config> = StorageValue<_, u64, ValueQuery>;
 
-    #[pallet::storage]
-    #[pallet::getter(fn players)]
-    pub(super) type Players<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Player<T>>;
+	#[pallet::storage]
+	#[pallet::getter(fn players)]
+	pub(super) type Players<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Player<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn username)]
@@ -84,21 +89,18 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-
 		#[pallet::weight(100)]
-		pub fn new_player(origin: OriginFor<T>, username: [u8; 16]) -> DispatchResult{
+		pub fn new_player(origin: OriginFor<T>, username: [u8; 16]) -> DispatchResult {
 			Self::is_username_available(username)?;
 			let sender = ensure_signed(origin)?;
 			Self::create_new_player(&sender, username)?;
 			Ok(())
 		}
-
 	}
 
 	//** Our helper functions.**//
 
 	impl<T: Config> Pallet<T> {
-
 		pub fn is_username_available(username: [u8; 16]) -> Result<bool, Error<T>> {
 			match Self::username(username) {
 				Some(_) => Err(<Error<T>>::UsernameUsed),
@@ -106,13 +108,11 @@ pub mod pallet {
 			}
 		}
 
-		pub fn create_new_player(sender: &T::AccountId, username: [u8; 16]) -> Result<(), Error<T>>{
-			let player = Player::<T> {
-				owner: sender.clone(),
-				username,
-				level: 0u32,
-				exp: 0u32,
-			};
+		pub fn create_new_player(
+			sender: &T::AccountId,
+			username: [u8; 16],
+		) -> Result<(), Error<T>> {
+			let player = Player::<T> { owner: sender.clone(), username, level: 0u32, exp: 0u32 };
 
 			<Players<T>>::insert(sender, player);
 			<Username<T>>::insert(username, sender);

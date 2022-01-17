@@ -61,17 +61,35 @@ tag = 'monthly-2021-12'
 version = '4.0.0-dev'
 
 [dependencies.serde]
-version =  '1.0.129'
+version = '1.0.129'
+
+[dependencies.pallet-balances]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'monthly-2021-12'
+version = '4.0.0-dev'
+
+[dependencies.pallet-randomness-collective-flip]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'monthly-2021-12'
+version = '4.0.0-dev'
 
 [features]
 default = ['std']
-runtime-benchmarks = ['frame-benchmarking']
+runtime-benchmarks = [
+    'frame-benchmarking',
+    'pallet-balances/runtime-benchmarks',
+]
+
 std = [
     'sp-io/std',
     'codec/std',
     'scale-info/std',
     'frame-support/std',
+    'pallet-balances/std',
     'frame-system/std',
     'frame-benchmarking/std',
+    'pallet-randomness-collective-flip/std',
 ]
 try-runtime = ['frame-support/try-runtime']

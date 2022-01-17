@@ -44,6 +44,7 @@ pub use sp_runtime::{Perbill, Permill};
 pub use pallet_player;
 pub use pallet_hero;
 pub use pallet_game;
+pub use pallet_template;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -312,6 +313,10 @@ impl pallet_game::Config for Runtime {
 	type GameRandomness = RandomnessCollectiveFlip;
 }
 
+impl pallet_template::Config for Runtime {
+	type Event = Event;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -331,6 +336,7 @@ construct_runtime!(
 		Player: pallet_player,
 		Hero: pallet_hero,
 		Game: pallet_game,
+		Template: pallet_template,
 	}
 );
 
