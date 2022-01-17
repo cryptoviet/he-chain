@@ -8,12 +8,11 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*,
-		sp_runtime::traits::Hash,
+		sp_runtime::{print, traits::Hash},
 		traits::{
 			tokens::{ExistenceRequirement, WithdrawReasons},
 			Currency, Randomness,
@@ -437,25 +436,69 @@ pub mod pallet {
 			Ok(other.clone())
 		}
 
-		pub fn check_winner(game_id: &ID, player_index: u8, x: usize, y: usize) {
-			let game_map = Self::gomoku_game(game_id).unwrap();
+		pub fn check_winner(
+			game_map: &[[i8; 15]; 15],
+			player_index: i8,
+			x: usize,
+			y: usize,
+		) -> Result<bool, Error<T>> {
 			// check horizontal
-			let vertical_check = || -> bool {
-				for _ in 0..2 {
-					for x_up in x..15 {
-						if game_map[x_up][y] != player_index {
-							return false
-						}
+			let horizontal_check = || -> bool {
+				for index in 1..3 {
+					if game_map[x + index][y] != player_index {
+						return false
 					}
-					for x_down in x..0 {
-						if game_map[x_down][y] != player_index {
-							return false
-						}
+					if game_map[x - index][y] != player_index {
+						return false
 					}
 				}
-				return true;
+				return true
 			};
 
+			let vertical_check = || -> bool {
+				for index in 1..3 {
+					if game_map[x][y + index] != player_index {
+						return false
+					}
+					if game_map[x][y - index] != player_index {
+						return false
+					}
+				}
+				return true
+			};
+
+			let topright_bottomleft_check = || -> bool {
+				for index in 1..3 {
+					if game_map[x + index][y + index] != player_index {
+						return false
+					}
+					if game_map[x - index][y - index] != player_index {
+						return false
+					}
+				}
+				return true
+			};
+
+			let topleft_bottomright_check = || -> bool {
+				for index in 1..3 {
+					if game_map[x - index][y + index] != player_index {
+						return false
+					}
+					if game_map[x + index][y - index] != player_index {
+						return false
+					}
+				}
+				return true
+			};
+
+			if horizontal_check() ||
+				vertical_check() || topright_bottomleft_check() ||
+				topleft_bottomright_check()
+			{
+				Ok(true)
+			} else {
+				Ok(false)
+			}
 		}
 	}
 }
