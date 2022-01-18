@@ -41,6 +41,16 @@ pub mod pallet {
 
 	#[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
+	pub struct EndedGame<T: Config> {
+		id: ID,
+		host: T::AccountId,
+		ticket: BalanceOf<T>,
+		game_map: [[i8; 15]; 15],
+		winner: T::AccountId,
+	}
+
+	#[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo)]
+	#[scale_info(skip_type_params(T))]
 	#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 	pub enum GameStatus {
 		Open,
@@ -77,6 +87,9 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type OpenGameFee: Get<u32>;
+
+		#[pallet::constant]
+		type MaxEndedGame: Get<u32>;
 	}
 
 	// Errors.
@@ -86,7 +99,9 @@ pub mod pallet {
 		GameNotOpen,
 		GameIdUsed,
 		GameOverflow,
-		GameOpenIdNotExist,
+		GameOpenNotFound,
+		GamePlayingNotFound,
+		GameEndedNotFound,
 		ExceedGameOpen,
 		PlayerExceed,
 		PlayersOverflow,
@@ -141,6 +156,7 @@ pub mod pallet {
 	#[pallet::getter(fn players)]
 	pub(super) type Players<T: Config> =
 		StorageMap<_, Twox64Concat, ID, BoundedVec<T::AccountId, T::MaxGomokuPlayer>, ValueQuery>;
+
 	#[pallet::storage]
 	#[pallet::getter(fn game_playing)]
 	pub(super) type GamePlaying<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, ID>;
@@ -149,10 +165,19 @@ pub mod pallet {
 	#[pallet::getter(fn game_hosting)]
 	pub(super) type GameHosting<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, ID>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn ended_game)]
+	pub(super) type EndedGames<T: Config> = StorageMap<_, Twox64Concat, ID, EndedGame<T>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_ended_games)]
+	pub(super) type GetEndedGames<T: Config> =
+		StorageValue<_, BoundedVec<ID, T::MaxEndedGame>, ValueQuery>;
+
 	// GAME LOGIC STORAGE
 	#[pallet::storage]
 	#[pallet::getter(fn gomoku_game)]
-	pub(super) type GomokuGame<T: Config> = StorageMap<_, Twox64Concat, ID, [[u8; 15]; 15]>;
+	pub(super) type GomokuGame<T: Config> = StorageMap<_, Twox64Concat, ID, [[i8; 15]; 15]>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn turn)]
@@ -259,7 +284,7 @@ pub mod pallet {
 
 			ensure!(players.len() as u8 == Self::max_gomoku_player(), <Error<T>>::NotEnoughPlayer);
 
-			<GomokuGame<T>>::insert(id_game_playing, [[0u8; 15]; 15]);
+			<GomokuGame<T>>::insert(id_game_playing, [[-1i8; 15]; 15]);
 
 			<GameOpen<T>>::try_mutate(|id_vec| {
 				if let Some(ind) = id_vec.iter().position(|&id| id == id_game_playing) {
@@ -268,7 +293,7 @@ pub mod pallet {
 				}
 				Err(())
 			})
-			.map_err(|_| <Error<T>>::GameOpenIdNotExist)?;
+			.map_err(|_| <Error<T>>::GameOpenNotFound)?;
 
 			<GameStart<T>>::try_mutate(|game_start| game_start.try_push(id_game_playing))
 				.map_err(|_| <Error<T>>::GameNotExist)?;
@@ -281,16 +306,32 @@ pub mod pallet {
 		pub fn play_game(sender: &T::AccountId, x: usize, y: usize) -> Result<(), Error<T>> {
 			ensure!(sender == &Self::turn(), <Error<T>>::NotYourTurn);
 			let game_playing_id = Self::get_game_playing(sender)?;
-			// let gomoku_game = Self::gomoku_game(game_playing_id);
-
-			let player_index = Self::get_player_index(&game_playing_id, &sender)? + 1;
-
+			let player_index = Self::get_player_index(&game_playing_id, &sender)?;
 			ensure!(
-				(Self::gomoku_game(game_playing_id).unwrap())[x][y] == 0u8,
+				(Self::gomoku_game(game_playing_id).unwrap())[x][y] == -1i8,
 				<Error<T>>::PlaceNotEmpty
 			);
 
-			<GomokuGame<T>>::try_mutate(game_playing_id, |gomoku| {
+			// check winner
+			let gomoku_game = Self::gomoku_game(game_playing_id).unwrap();
+			let game_result = Self::check_winner(&gomoku_game, player_index, x, y)?;
+
+			if game_result == false {
+				Self::continue_game(sender, &game_playing_id, x, y, player_index)?;
+			} else {
+				Self::finish_game(sender.clone(), game_playing_id, gomoku_game)?;
+			}
+			Ok(())
+		}
+
+		pub fn continue_game(
+			sender: &T::AccountId,
+			game_id: &ID,
+			x: usize,
+			y: usize,
+			player_index: i8,
+		) -> Result<(), Error<T>> {
+			<GomokuGame<T>>::try_mutate(game_id, |gomoku| {
 				let mut new_gomoku = gomoku.unwrap();
 				new_gomoku[x][y] = player_index;
 				*gomoku = Some(new_gomoku);
@@ -298,8 +339,32 @@ pub mod pallet {
 			})
 			.map_err(|_: Error<T>| <Error<T>>::GameMapNotFound)?;
 
-			let other_player = Self::get_other_player(&game_playing_id, sender)?;
+			let other_player = Self::get_other_player(&game_id, sender)?;
 			<Turn<T>>::put(other_player);
+			Ok(())
+		}
+
+		pub fn finish_game(
+			winner: T::AccountId,
+			game_id: ID,
+			game_map: [[i8; 15]; 15],
+		) -> Result<(), Error<T>> {
+			let game = Self::get_game(&game_id)?;
+
+			<GamePlaying<T>>::remove(winner.clone());
+			<Players<T>>::remove(game_id);
+			<GameHosting<T>>::remove(game.host.clone());
+
+			let ended_game =
+				EndedGame { id: game.id, host: game.host, ticket: game.ticket, winner: winner.clone(), game_map };
+
+			<GetEndedGames<T>>::try_mutate(|game_vec| game_vec.try_push(game_id))
+				.map_err(|_| <Error<T>>::GameEndedNotFound)?;
+
+			<EndedGames<T>>::insert(game_id, ended_game);
+			let ticket = Self::balance_to_u64(game.ticket).unwrap();
+			let ticket = Self::u64_to_balance((ticket as f64 - (ticket as f64 * 0.01)) as u64).unwrap();
+			let _ = T::Currency::deposit_into_existing(&winner, ticket);
 			Ok(())
 		}
 
@@ -416,14 +481,14 @@ pub mod pallet {
 		pub fn is_game_open(game_id: &ID) -> Result<bool, Error<T>> {
 			match <GameOpen<T>>::get().binary_search(game_id) {
 				Ok(_) => Ok(true),
-				Err(_) => Err(<Error<T>>::GameOpenIdNotExist),
+				Err(_) => Err(<Error<T>>::GameOpenNotFound),
 			}
 		}
 
-		pub fn get_player_index(game_id: &ID, player: &T::AccountId) -> Result<u8, Error<T>> {
+		pub fn get_player_index(game_id: &ID, player: &T::AccountId) -> Result<i8, Error<T>> {
 			let slice = Self::players(game_id);
 			let index = slice.iter().position(|p| p == player).unwrap();
-			Ok(index as u8)
+			Ok(index as i8)
 		}
 
 		pub fn get_other_player(
@@ -499,6 +564,14 @@ pub mod pallet {
 			} else {
 				Ok(false)
 			}
+		}
+
+		pub fn balance_to_u64(balance: BalanceOf<T>) -> Option<u64> {
+			TryInto::<u64>::try_into(balance).ok()
+		}
+
+		pub fn u64_to_balance(num: u64) -> Option<BalanceOf<T>> {
+			num.try_into().ok()
 		}
 	}
 }

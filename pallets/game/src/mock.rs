@@ -91,6 +91,7 @@ parameter_types! {
 	pub const MaxOpenGame: u32 = 10;
 	pub const MaxStartGame: u32 = 10;
 	pub const OpenGameFee: u32 = 1000000000u32;
+	pub const MaxEndedGame: u32 = 1000000000u32;
 }
 
 impl pallet_game::Config for Test {
@@ -101,6 +102,7 @@ impl pallet_game::Config for Test {
 	type MaxOpenGame = MaxOpenGame;
 	type MaxStartGame = MaxStartGame;
 	type OpenGameFee = OpenGameFee;
+	type MaxEndedGame = MaxEndedGame;
 	type GameRandomness = RandomnessCollectiveFlip;
 }
 

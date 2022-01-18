@@ -47,11 +47,11 @@ fn test_winner_should_works() {
 		}
 
 		{
-            let mut game_map = [[-1i8; 15]; 15];
+			let mut game_map = [[-1i8; 15]; 15];
 			let player_index: i8 = 1;
 			let x: usize = 7;
 			let y: usize = 7;
-            let is_winner = PalletGame::check_winner(&game_map, player_index, x, y).unwrap();
+			let is_winner = PalletGame::check_winner(&game_map, player_index, x, y).unwrap();
 			assert_eq!(is_winner, false, "should not win");
 
 			game_map[7][6] = player_index;
@@ -68,10 +68,10 @@ fn test_winner_should_works() {
 			game_map[7][10] = player_index;
 			let is_winner = PalletGame::check_winner(&game_map, player_index, x, y).unwrap();
 			assert_eq!(is_winner, true, "should win");
-        }
+		}
 
-        {
-            let mut game_map = [[-1i8; 15]; 15];
+		{
+			let mut game_map = [[-1i8; 15]; 15];
 			let player_index: i8 = 1;
 			let x: usize = 7;
 			let y: usize = 7;
@@ -90,10 +90,10 @@ fn test_winner_should_works() {
 			game_map[4][4] = player_index;
 			let is_winner = PalletGame::check_winner(&game_map, player_index, x, y).unwrap();
 			assert_eq!(is_winner, true, "should win");
-        }
+		}
 
-        {
-            let mut game_map = [[-1i8; 15]; 15];
+		{
+			let mut game_map = [[-1i8; 15]; 15];
 			let player_index: i8 = 1;
 			let x: usize = 7;
 			let y: usize = 7;
@@ -112,7 +112,30 @@ fn test_winner_should_works() {
 			game_map[10][4] = player_index;
 			let is_winner = PalletGame::check_winner(&game_map, player_index, x, y).unwrap();
 			assert_eq!(is_winner, true, "should win");
-        }
+		}
+	});
+}
+
+#[test]
+fn game_flow_should_works() {
+	new_test_ext().execute_with(|| {
+		run_to_block(10);
+		let _ = <Test as Config>::Currency::deposit_creating(&ALICE, 100_000_000);
+		let _ = <Test as Config>::Currency::deposit_creating(&BOB, 100_000_000);
+		let ticket = 1000;
+
+		// Max game player
+		let max_gomoku_player = PalletGame::max_gomoku_player();
+		assert_eq!(max_gomoku_player, 2, "Gomoku max player not correct");
+
+		// Oprn game
+		assert_ok!(PalletGame::open(Origin::signed(ALICE), ticket));
+
+		// Join game
+		let game_open_ids = PalletGame::game_open();
+		assert_eq!(game_open_ids.len(), 1, "game opened length not correct");
+		let game_id = game_open_ids.first().unwrap();
+		assert_ok!(PalletGame::join(Origin::signed(BOB), *game_id));
 
 
 	});
