@@ -1,4 +1,4 @@
-use crate::{mock::*, Config, Error};
+use crate::{mock::*, Config, EndedGame, Error};
 use frame_support::{assert_err, assert_ok, traits::Currency};
 
 #[test]
@@ -184,11 +184,36 @@ fn game_flow_should_works() {
 			assert_ok!(PalletGame::play(Origin::signed(ALICE), 1, 3));
 			assert_ok!(PalletGame::play(Origin::signed(BOB), 7, 4));
 			assert_ok!(PalletGame::play(Origin::signed(ALICE), 1, 4));
-			assert_ok!(PalletGame::play(Origin::signed(BOB), 7, 3));
-			
-			run_to_block(20);
 
-			assert_err!(PalletGame::play(Origin::signed(ALICE), 1, 5), <Error<Test>>::PlayerNotPlaying);
+			// BOB win this game
+			{
+				let bob_before_balance = <Test as Config>::Currency::free_balance(BOB);
+				assert_ok!(PalletGame::play(Origin::signed(BOB), 7, 3));
+				let bob_after_balance = <Test as Config>::Currency::free_balance(BOB);
+
+				let mut reward = ticket * 2;
+				reward = (reward as f64 - (reward as f64 * 0.01)) as u64;
+				assert_eq!(bob_after_balance - bob_before_balance, reward, "reward receipt not correct");
+			}
+
+			run_to_block(20);
+			assert_err!(
+				PalletGame::play(Origin::signed(ALICE), 1, 5),
+				<Error<Test>>::PlayerNotPlaying
+			);
+			assert_err!(
+				PalletGame::play(Origin::signed(BOB), 1, 5),
+				<Error<Test>>::PlayerNotPlaying
+			);
+
+			// check storage
+			{
+				let ended_game: EndedGame<Test> = PalletGame::ended_game(game_id).unwrap();
+				assert_eq!(ended_game.winner, BOB, "winner not correct");
+
+				let ended_games = PalletGame::get_ended_games();
+				assert_eq!(ended_games.contains(game_id), true, "ended_games must contain game_id");
+			}
 		}
 	});
 }

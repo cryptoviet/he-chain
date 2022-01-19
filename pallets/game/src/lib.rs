@@ -33,19 +33,19 @@ pub mod pallet {
 	#[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub struct Game<T: Config> {
-		id: ID,
-		host: T::AccountId,
-		ticket: BalanceOf<T>,
+		pub id: ID,
+		pub host: T::AccountId,
+		pub ticket: BalanceOf<T>,
 	}
 
 	#[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub struct EndedGame<T: Config> {
-		id: ID,
-		host: T::AccountId,
-		ticket: BalanceOf<T>,
-		game_map: [[i8; 15]; 15],
-		winner: T::AccountId,
+		pub id: ID,
+		pub host: T::AccountId,
+		pub ticket: BalanceOf<T>,
+		pub game_map: [[i8; 15]; 15],
+		pub winner: T::AccountId,
 	}
 
 	#[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo)]
@@ -381,8 +381,8 @@ pub mod pallet {
 
 			<EndedGames<T>>::insert(game_id, ended_game);
 			let ticket = Self::balance_to_u64(game.ticket).unwrap();
-			let ticket =
-				Self::u64_to_balance((ticket as f64 - (ticket as f64 * 0.01)) as u64).unwrap();
+			let reward = (ticket * 2) as f64 - ((ticket * 2) as f64 * 0.01);
+			let ticket = Self::u64_to_balance(reward as u64).unwrap();
 			let _ = T::Currency::deposit_into_existing(&winner, ticket);
 			Ok(())
 		}
