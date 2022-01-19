@@ -25,7 +25,6 @@ pub mod pallet {
 	#[cfg(feature = "std")]
 	use frame_support::serde::{Deserialize, Serialize};
 
-	type AccountOf<T> = <T as frame_system::Config>::AccountId;
 	type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 	type ID = [u8; 32];
@@ -115,6 +114,7 @@ pub mod pallet {
 		NotYourTurn,
 		GameMapNotFound,
 		PlaceNotEmpty,
+		PlaceNotCorrect,
 	}
 
 	// Events.
@@ -128,8 +128,6 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn game_cnt)]
 	pub(super) type GameCnt<T: Config> = StorageValue<_, u64, ValueQuery>;
-
-	// ACTION #7: Remaining storage items.
 
 	#[pallet::storage]
 	#[pallet::getter(fn open_game_fee)]
@@ -181,7 +179,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn turn)]
-	pub(super) type Turn<T: Config> = StorageValue<_, T::AccountId, ValueQuery>;
+	pub(super) type Turn<T: Config> = StorageMap<_, Twox64Concat, ID, T::AccountId>;
 
 	//** Genesis Conguration **//
 	#[pallet::genesis_config]
@@ -298,14 +296,14 @@ pub mod pallet {
 			<GameStart<T>>::try_mutate(|game_start| game_start.try_push(id_game_playing))
 				.map_err(|_| <Error<T>>::GameNotExist)?;
 
-			<Turn<T>>::put(sender);
+			<Turn<T>>::insert(id_game_playing, sender);
 			Ok(())
 		}
 
 		#[transactional]
 		pub fn play_game(sender: &T::AccountId, x: usize, y: usize) -> Result<(), Error<T>> {
-			ensure!(sender == &Self::turn(), <Error<T>>::NotYourTurn);
 			let game_playing_id = Self::get_game_playing(sender)?;
+			ensure!(Self::get_turn(sender, game_playing_id)?, <Error<T>>::NotYourTurn);
 			let player_index = Self::get_player_index(&game_playing_id, &sender)?;
 			ensure!(
 				(Self::gomoku_game(game_playing_id).unwrap())[x][y] == -1i8,
@@ -314,7 +312,8 @@ pub mod pallet {
 
 			// check winner
 			let gomoku_game = Self::gomoku_game(game_playing_id).unwrap();
-			let game_result = Self::check_winner(&gomoku_game, player_index, x, y)?;
+
+			let game_result = Self::check_winner(gomoku_game, player_index, x, y)?;
 
 			if game_result == false {
 				Self::continue_game(sender, &game_playing_id, x, y, player_index)?;
@@ -322,6 +321,18 @@ pub mod pallet {
 				Self::finish_game(sender.clone(), game_playing_id, gomoku_game)?;
 			}
 			Ok(())
+		}
+
+		pub fn get_turn(sender: &T::AccountId, game_id: ID) -> Result<bool, Error<T>> {
+			match Self::turn(game_id) {
+				Some(player) =>
+					if *sender == player {
+						Ok(true)
+					} else {
+						Ok(false)
+					},
+				None => Err(<Error<T>>::PlayerNotPlaying),
+			}
 		}
 
 		pub fn continue_game(
@@ -340,7 +351,7 @@ pub mod pallet {
 			.map_err(|_: Error<T>| <Error<T>>::GameMapNotFound)?;
 
 			let other_player = Self::get_other_player(&game_id, sender)?;
-			<Turn<T>>::put(other_player);
+			<Turn<T>>::insert(game_id, other_player);
 			Ok(())
 		}
 
@@ -350,20 +361,28 @@ pub mod pallet {
 			game_map: [[i8; 15]; 15],
 		) -> Result<(), Error<T>> {
 			let game = Self::get_game(&game_id)?;
-
-			<GamePlaying<T>>::remove(winner.clone());
+			let players = Self::players(game_id);
+			for player in players {
+				<GamePlaying<T>>::remove(player);
+			}
 			<Players<T>>::remove(game_id);
 			<GameHosting<T>>::remove(game.host.clone());
 
-			let ended_game =
-				EndedGame { id: game.id, host: game.host, ticket: game.ticket, winner: winner.clone(), game_map };
+			let ended_game = EndedGame {
+				id: game.id,
+				host: game.host,
+				ticket: game.ticket,
+				winner: winner.clone(),
+				game_map,
+			};
 
 			<GetEndedGames<T>>::try_mutate(|game_vec| game_vec.try_push(game_id))
 				.map_err(|_| <Error<T>>::GameEndedNotFound)?;
 
 			<EndedGames<T>>::insert(game_id, ended_game);
 			let ticket = Self::balance_to_u64(game.ticket).unwrap();
-			let ticket = Self::u64_to_balance((ticket as f64 - (ticket as f64 * 0.01)) as u64).unwrap();
+			let ticket =
+				Self::u64_to_balance((ticket as f64 - (ticket as f64 * 0.01)) as u64).unwrap();
 			let _ = T::Currency::deposit_into_existing(&winner, ticket);
 			Ok(())
 		}
@@ -502,58 +521,118 @@ pub mod pallet {
 		}
 
 		pub fn check_winner(
-			game_map: &[[i8; 15]; 15],
+			game_map: [[i8; 15]; 15],
 			player_index: i8,
 			x: usize,
 			y: usize,
 		) -> Result<bool, Error<T>> {
+			if x >= 15 || y >= 15 {
+				return Err(<Error<T>>::PlaceNotCorrect)
+			}
+
 			// check horizontal
 			let horizontal_check = || -> bool {
-				for index in 1..3 {
-					if game_map[x + index][y] != player_index {
-						return false
+				let mut count = 0;
+				let mut up = true;
+				let mut down = true;
+				for index in 1..6 {
+					if (x + index < 15) && game_map[x + index][y] == player_index && up {
+						count = count + 1;
+					} else {
+						up = false;
 					}
-					if game_map[x - index][y] != player_index {
-						return false
+					if x >= index && game_map[x - index][y] == player_index && down {
+						count = count + 1;
+					} else {
+						down = false;
 					}
 				}
-				return true
+				if count >= 4 {
+					return true
+				} else {
+					return false
+				}
 			};
 
 			let vertical_check = || -> bool {
-				for index in 1..3 {
-					if game_map[x][y + index] != player_index {
-						return false
+				let mut count = 0;
+				let mut up = true;
+				let mut down = true;
+				for index in 1..6 {
+					if (y + index < 15) && game_map[x][y + index] == player_index && up {
+						count = count + 1;
+					} else {
+						up = false;
 					}
-					if game_map[x][y - index] != player_index {
-						return false
+					if y > index && game_map[x][y - index] == player_index && down {
+						count = count + 1;
+					} else {
+						down = false;
 					}
 				}
-				return true
+				if count >= 4 {
+					return true
+				} else {
+					return false
+				}
 			};
 
 			let topright_bottomleft_check = || -> bool {
-				for index in 1..3 {
-					if game_map[x + index][y + index] != player_index {
-						return false
+				let mut count = 0;
+				let mut up = true;
+				let mut down = true;
+				for index in 1..6 {
+					if (x + index < 15) &&
+						(y + index < 15) && game_map[x + index][y + index] == player_index &&
+						up
+					{
+						count = count + 1;
+					} else {
+						up = false;
 					}
-					if game_map[x - index][y - index] != player_index {
-						return false
+					if x > index &&
+						y > index && game_map[x - index][y - index] == player_index &&
+						down
+					{
+						count = count + 1;
+					} else {
+						down = false;
 					}
 				}
-				return true
+				if count >= 4 {
+					return true
+				} else {
+					return false
+				}
 			};
 
 			let topleft_bottomright_check = || -> bool {
-				for index in 1..3 {
-					if game_map[x - index][y + index] != player_index {
-						return false
+				let mut count = 0;
+				let mut up = true;
+				let mut down = true;
+				for index in 1..6 {
+					if (x > index) &&
+						(y + index < 15) && game_map[x - index][y + index] == player_index &&
+						up
+					{
+						count = count + 1;
+					} else {
+						up = false;
 					}
-					if game_map[x + index][y - index] != player_index {
-						return false
+					if (x + index < 15) &&
+						y > index && game_map[x + index][y - index] == player_index &&
+						down
+					{
+						count = count + 1;
+					} else {
+						down = false;
 					}
 				}
-				return true
+				if count >= 4 {
+					return true
+				} else {
+					return false
+				}
 			};
 
 			if horizontal_check() ||
@@ -572,6 +651,11 @@ pub mod pallet {
 
 		pub fn u64_to_balance(num: u64) -> Option<BalanceOf<T>> {
 			num.try_into().ok()
+		}
+
+		pub fn set_max_player(num: u8) -> Result<(), Error<T>> {
+			<MaxGomoku<T>>::put(num);
+			Ok(())
 		}
 	}
 }

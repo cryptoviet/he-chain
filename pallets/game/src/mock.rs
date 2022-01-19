@@ -7,7 +7,7 @@ use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	AccountId32
+	AccountId32,
 };
 
 pub use pallet_balances::Call as BalancesCall;
@@ -19,7 +19,6 @@ pub const ALICE: AccountId32 = AccountId32::new([1u8; 32]);
 pub const BOB: AccountId32 = AccountId32::new([2u8; 32]);
 pub const CHARLIE: AccountId32 = AccountId32::new([3u8; 32]);
 pub const DJANGO: AccountId32 = AccountId32::new([4u8; 32]);
-
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
@@ -120,5 +119,33 @@ pub fn run_to_block(n: u64) {
 		System::set_block_number(System::block_number() + 1);
 		System::on_initialize(System::block_number());
 		PalletGame::on_initialize(System::block_number());
+	}
+}
+
+pub struct ExtBuilder;
+
+// impl ExtBuilder {
+// 	pub fn build(self) -> sp_io::TestExternalities {
+// 		let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
+// 		let mut ext = sp_io::TestExternalities::new(t);
+// 		ext.execute_with(|| System::set_block_number(1));
+// 		ext
+// 	}
+// }
+
+impl ExtBuilder {
+	pub fn build(self) -> sp_io::TestExternalities {
+		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		pallet_balances::GenesisConfig::<Test> {
+			balances: vec![(ALICE, 1000000000), (BOB, 1000000000)],
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
+
+		let mut ext = sp_io::TestExternalities::new(t);
+		ext.execute_with(|| System::set_block_number(1));
+		ext
+
 	}
 }
