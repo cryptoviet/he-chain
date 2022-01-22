@@ -1,8 +1,7 @@
 [workspace]
 members = [
     'node',
-    'pallets/player',
-    'pallets/hero',
+    'pallets/gomoku',
     'pallets/game',
     'runtime',
 ]

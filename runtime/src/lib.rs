@@ -40,11 +40,9 @@ use pallet_transaction_payment::CurrencyAdapter;
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
 
-/// Import the template pallet.
-pub use pallet_player;
-pub use pallet_hero;
+/// Import your pallets.
+pub use pallet_gomoku;
 pub use pallet_game;
-pub use pallet_template;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -277,23 +275,6 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
-/// Configure the pallet-template in pallets/template.
-impl pallet_player::Config for Runtime {
-	type Event = Event;
-	type Currency = Balances;
-}
-
-parameter_types! {
-    pub const MaxHeroOwned: u32 = 9999;
-}
-
-impl pallet_hero::Config for Runtime {
-	type Event = Event;
-	type Currency = Balances;
-	type MaxHeroOwned = MaxHeroOwned;
-	type HeroRandomness = RandomnessCollectiveFlip;
-}
-
 parameter_types! {
 	pub const MaxGomokuPlayer: u32 = 2;
 	pub const MaxGame: u32 = 10;
@@ -303,7 +284,7 @@ parameter_types! {
 	pub const MaxEndedGame: u32 = 1000000000u32;
 }
 
-impl pallet_game::Config for Runtime {
+impl pallet_gomoku::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type MaxGomokuPlayer = MaxGomokuPlayer;
@@ -315,9 +296,12 @@ impl pallet_game::Config for Runtime {
 	type GameRandomness = RandomnessCollectiveFlip;
 }
 
-impl pallet_template::Config for Runtime {
+impl pallet_game::Config for Runtime {
 	type Event = Event;
+	type Currency = Balances;
+	type GameRandomness = RandomnessCollectiveFlip;
 }
+
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -335,10 +319,8 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
 		// Include the custom logic from the pallet-template in the runtime.
-		Player: pallet_player,
-		Hero: pallet_hero,
+		Gomoku: pallet_gomoku,
 		Game: pallet_game,
-		Template: pallet_template,
 	}
 );
 

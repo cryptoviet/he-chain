@@ -46,17 +46,21 @@ pub mod pallet {
 
 		type Currency: Currency<Self::AccountId>;
 
-		// #[constant]
-		// type MaxPlayer = Get<u32>;
+		type GameRandomness: Randomness<Self::Hash, Self::BlockNumber>;
 	}
 
 	// Errors.
 	#[pallet::error]
-	pub enum Error<T> {}
+	pub enum Error<T> {
+		PlayerIdUsed,
+		PlayerExisted,
+	}
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
-	pub enum Event<T: Config> {}
+	pub enum Event<T: Config> {
+		NewPlayerCreated(T::AccountId, ID),
+	}
 
 	// Storage
 	#[pallet::storage]
@@ -65,11 +69,52 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn player_owned)]
-	pub(super) type PlayerOwned<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, ID, ValueQuery>;
-
+	pub(super) type PlayerOwned<T: Config> =
+		StorageMap<_, Twox64Concat, T::AccountId, ID>;
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {}
+	impl<T: Config> Pallet<T> {
+		#[pallet::weight(100)]
+		pub fn create_player(origin: OriginFor<T>, name: NAME) -> DispatchResult {
+			let sender = ensure_signed(origin)?;
+			let id = Self::create_new_player(sender.clone(), name)?;
+			Self::deposit_event(Event::NewPlayerCreated(sender, id));
+			Ok(())
+		}
+	}
 
-	impl<T: Config> Pallet<T> {}
+	impl<T: Config> Pallet<T> {
+		pub fn gen_id() -> Result<ID, Error<T>> {
+			let payload = (
+				T::GameRandomness::random(&b""[..]).0,
+				<frame_system::Pallet<T>>::block_number(),
+			);
+			Ok(payload.using_encoded(blake2_256))
+		}
+
+		pub fn create_new_player(sender: T::AccountId, user_name: NAME) -> Result<ID, Error<T>> {
+			Self::is_player_available(&sender)?;
+			let id = Self::gen_id()?;
+			Self::is_player_id_available(&id)?;
+			let player = Player::<T> { id, owner: sender.clone(), name: user_name };
+
+			<Players<T>>::insert(id, player);
+			<PlayerOwned<T>>::insert(sender, id);
+			Ok(id)
+		}
+
+		pub fn is_player_id_available(id: &ID) -> Result<bool, Error<T>> {
+			match Self::players(id) {
+				Some(_) => Err(<Error<T>>::PlayerIdUsed),
+				None => Ok(true),
+			}
+		}
+
+		pub fn is_player_available(player: &T::AccountId) -> Result<bool, Error<T>> {
+			match Self::player_owned(player) {
+				Some(_) => Err(<Error<T>>::PlayerExisted),
+				None => Ok(true),
+			}
+		}
+	}
 }
