@@ -82,24 +82,9 @@ impl system::Config for Test {
 	type OnSetCode = ();
 }
 
-parameter_types! {
-	pub const MaxGomokuPlayer: u32 = 2;
-	pub const MaxGame: u32 = 10;
-	pub const MaxOpenGame: u32 = 10;
-	pub const MaxStartGame: u32 = 10;
-	pub const OpenGameFee: u32 = 1000000000u32;
-	pub const MaxEndedGame: u32 = 1000000000u32;
-}
-
 impl pallet_game::Config for Test {
 	type Event = Event;
 	type Currency = Balances;
-	type MaxGomokuPlayer = MaxGomokuPlayer;
-	type MaxGame = MaxGame;
-	type MaxOpenGame = MaxOpenGame;
-	type MaxStartGame = MaxStartGame;
-	type OpenGameFee = OpenGameFee;
-	type MaxEndedGame = MaxEndedGame;
 	type GameRandomness = RandomnessCollectiveFlip;
 }
 

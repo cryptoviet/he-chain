@@ -157,6 +157,6 @@ fn testnet_genesis(
 		gomoku: GomokuConfig {
 			open_fee: OPEN_FEE,
 			max_gomoku_player: MAX_GOMOKU_PLAYER,
-		}
+		},
 	}
 }

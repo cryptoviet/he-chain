@@ -2,6 +2,12 @@
 
 pub use pallet::*;
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::{
@@ -50,6 +56,7 @@ pub mod pallet {
 	}
 
 	// Errors.
+	#[derive(PartialEq)]
 	#[pallet::error]
 	pub enum Error<T> {
 		PlayerIdUsed,
@@ -69,8 +76,8 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn player_owned)]
-	pub(super) type PlayerOwned<T: Config> =
-		StorageMap<_, Twox64Concat, T::AccountId, ID>;
+	pub(super) type PlayerOwned<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, ID>;
+
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -85,17 +92,15 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 		pub fn gen_id() -> Result<ID, Error<T>> {
-			let payload = (
-				T::GameRandomness::random(&b""[..]).0,
-				<frame_system::Pallet<T>>::block_number(),
-			);
+			let payload =
+				(T::GameRandomness::random(&b""[..]).0, <frame_system::Pallet<T>>::block_number());
 			Ok(payload.using_encoded(blake2_256))
 		}
 
 		pub fn create_new_player(sender: T::AccountId, user_name: NAME) -> Result<ID, Error<T>> {
-			Self::is_player_available(&sender)?;
+			ensure!(Self::is_player_available(&sender), <Error<T>>::PlayerExisted);
 			let id = Self::gen_id()?;
-			Self::is_player_id_available(&id)?;
+			ensure!(Self::is_player_id_available(&id), <Error<T>>::PlayerIdUsed);
 			let player = Player::<T> { id, owner: sender.clone(), name: user_name };
 
 			<Players<T>>::insert(id, player);
@@ -103,17 +108,17 @@ pub mod pallet {
 			Ok(id)
 		}
 
-		pub fn is_player_id_available(id: &ID) -> Result<bool, Error<T>> {
+		pub fn is_player_id_available(id: &ID) -> bool {
 			match Self::players(id) {
-				Some(_) => Err(<Error<T>>::PlayerIdUsed),
-				None => Ok(true),
+				Some(_) => false,
+				None => true,
 			}
 		}
 
-		pub fn is_player_available(player: &T::AccountId) -> Result<bool, Error<T>> {
+		pub fn is_player_available(player: &T::AccountId) -> bool {
 			match Self::player_owned(player) {
-				Some(_) => Err(<Error<T>>::PlayerExisted),
-				None => Ok(true),
+				Some(_) => false,
+				None => true,
 			}
 		}
 	}

@@ -1,4 +1,4 @@
-use crate as pallet_game;
+use crate as pallet_gomoku;
 use frame_support::parameter_types;
 use frame_system as system;
 
@@ -26,7 +26,7 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		PalletGame: pallet_game::{Pallet, Call, Storage, Event<T>},
+		PalletGame: pallet_gomoku::{Pallet, Call, Storage, Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip,
 		// Event: Event,
@@ -91,7 +91,7 @@ parameter_types! {
 	pub const MaxEndedGame: u32 = 1000000000u32;
 }
 
-impl pallet_game::Config for Test {
+impl pallet_gomoku::Config for Test {
 	type Event = Event;
 	type Currency = Balances;
 	type MaxGomokuPlayer = MaxGomokuPlayer;
