@@ -160,6 +160,7 @@ fn testnet_genesis(
 		},
 		pool: PoolConfig {
 			mark_block: 3600u32,
+			pool_fee: 1000000u32.into(),
 		},
 	}
 }

@@ -14,12 +14,19 @@ pub mod pallet {
 	use frame_support::{
 		dispatch::{DispatchResult, DispatchResultWithPostInfo},
 		pallet_prelude::*,
-		sp_runtime::traits::{Hash, Zero},
-		traits::{Currency, ExistenceRequirement, Randomness},
+		sp_runtime::{
+			traits::{Hash, Zero},
+		},
+		traits::{
+			tokens::{ExistenceRequirement, WithdrawReasons},
+			Currency, Randomness,
+		},
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_io::hashing::blake2_128;
 
+	type BalanceOf<T> =
+		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 	type ID = [u8; 32];
 
 	// Struct, Enum
@@ -71,24 +78,29 @@ pub mod pallet {
 	pub type MarkBlock<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn pool_fee)]
+	pub type PoolFee<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn players)]
 	pub(super) type Players<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Player<T>>;
 
 	//** Genesis Conguration **//
 	#[pallet::genesis_config]
-	pub struct GenesisConfig {
+	pub struct GenesisConfig<T: Config> {
 		pub mark_block: u32,
+		pub pool_fee: BalanceOf<T>,
 	}
 
 	#[cfg(feature = "std")]
-	impl Default for GenesisConfig {
+	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
-			Self { mark_block: 3600 }
+			Self { mark_block: 3600, pool_fee: 1000000u32.into() }
 		}
 	}
 
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig {
+	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
 			<MarkBlock<T>>::put(self.mark_block);
 		}
@@ -100,6 +112,7 @@ pub mod pallet {
 		pub fn join(origin: OriginFor<T>) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			Self::join_pool(sender.clone())?;
+			Self::charge_join_pool(&sender)?;
 			Self::deposit_event(Event::PlayerJoinPool(sender));
 			Ok(())
 		}
@@ -120,6 +133,21 @@ pub mod pallet {
 			let player = Player::<T> { address: sender.clone(), start_block: block_number };
 			<Players<T>>::insert(sender, player);
 			Ok(())
+		}
+
+		pub fn charge_join_pool(sender: &T::AccountId) -> DispatchResult {
+			let pool_fee = Self::pool_fee();
+			let withdraw = T::Currency::withdraw(
+				&sender,
+				pool_fee,
+				WithdrawReasons::RESERVE,
+				ExistenceRequirement::KeepAlive,
+			);
+
+			match withdraw {
+				Ok(_) => Ok(()),
+				Err(err) => Err(err),
+			}
 		}
 
 		fn leave_pool(sender: &T::AccountId) -> Result<(), Error<T>> {
