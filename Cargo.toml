@@ -2,7 +2,8 @@
 members = [
     'node',
     'pallets/gomoku',
-    'pallets/game',
+    'pallets/player',
+    'pallets/pool',
     'runtime',
 ]
 [profile.release]

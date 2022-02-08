@@ -42,7 +42,8 @@ pub use sp_runtime::{Perbill, Permill};
 
 /// Import your pallets.
 pub use pallet_gomoku;
-pub use pallet_game;
+pub use pallet_player;
+pub use pallet_pool;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -296,11 +297,22 @@ impl pallet_gomoku::Config for Runtime {
 	type GameRandomness = RandomnessCollectiveFlip;
 }
 
-impl pallet_game::Config for Runtime {
+impl pallet_player::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type GameRandomness = RandomnessCollectiveFlip;
 }
+
+parameter_types! {
+	pub const MaxPoolPlayer: u32 = 1000;
+}
+
+impl pallet_pool::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type MaxPoolPlayer = MaxPoolPlayer;
+}
+
 
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -320,7 +332,8 @@ construct_runtime!(
 		Sudo: pallet_sudo,
 		// Include the custom logic from the pallet-template in the runtime.
 		Gomoku: pallet_gomoku,
-		Game: pallet_game,
+		Game: pallet_player,
+		Pool: pallet_pool,
 	}
 );
 

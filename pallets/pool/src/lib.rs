@@ -23,6 +23,12 @@ pub mod pallet {
 	type ID = [u8; 32];
 
 	// Struct, Enum
+	#[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo)]
+	#[scale_info(skip_type_params(T))]
+	pub struct Player<T: Config> {
+		address: T::AccountId,
+		start_block: T::BlockNumber,
+	}
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -55,11 +61,38 @@ pub mod pallet {
 		PlayerLeavePool(T::AccountId),
 	}
 
-	// Storage
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_finalize(block_number: BlockNumberFor<T>) {}
+	}
+
+	#[pallet::storage]
+	#[pallet::getter(fn mark_block)]
+	pub type MarkBlock<T: Config> = StorageValue<_, u32, ValueQuery>;
+
 	#[pallet::storage]
 	#[pallet::getter(fn players)]
-	pub(super) type Players<T: Config> =
-		StorageValue<_, BoundedVec<T::AccountId, T::MaxPoolPlayer>, ValueQuery>;
+	pub(super) type Players<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Player<T>>;
+
+	//** Genesis Conguration **//
+	#[pallet::genesis_config]
+	pub struct GenesisConfig {
+		pub mark_block: u32,
+	}
+
+	#[cfg(feature = "std")]
+	impl Default for GenesisConfig {
+		fn default() -> Self {
+			Self { mark_block: 3600 }
+		}
+	}
+
+	#[pallet::genesis_build]
+	impl<T: Config> GenesisBuild<T> for GenesisConfig {
+		fn build(&self) {
+			<MarkBlock<T>>::put(self.mark_block);
+		}
+	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -82,28 +115,15 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 		fn join_pool(sender: T::AccountId) -> Result<(), Error<T>> {
-			ensure!(Self::get_player_index(&sender) == None, <Error<T>>::PlayerAlreadyJoin);
-			<Players<T>>::try_mutate(|player_vec| player_vec.try_push(sender))
-				.map_err(|_| <Error<T>>::ExceedPoolPlayer)?;
+			ensure!(Self::players(sender.clone()) == None, <Error<T>>::PlayerAlreadyJoin);
+			let block_number = <frame_system::Pallet<T>>::block_number();
+			let player = Player::<T> { address: sender.clone(), start_block: block_number };
+			<Players<T>>::insert(sender, player);
 			Ok(())
 		}
 
 		fn leave_pool(sender: &T::AccountId) -> Result<(), Error<T>> {
-			<Players<T>>::try_mutate(|player_vec| {
-				if let Some(ind) = player_vec.iter().position(|player| player == sender) {
-					player_vec.swap_remove(ind);
-					return Ok(())
-				}
-				Err(())
-			})
-			.map_err(|_| <Error<T>>::PlayerNotFound)?;
 			Ok(())
 		}
-
-		fn get_player_index(player: &T::AccountId) -> Option<usize> {
-			let players = Self::players();
-			players.iter().position(|p| p == player)
-		}
-
 	}
 }

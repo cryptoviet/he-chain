@@ -1,6 +1,6 @@
 use node_template_runtime::{
 	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, Signature, SudoConfig,
-	SystemConfig, WASM_BINARY, Balance, GomokuConfig
+	SystemConfig, WASM_BINARY, Balance, GomokuConfig, PoolConfig
 };
 use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -157,6 +157,9 @@ fn testnet_genesis(
 		gomoku: GomokuConfig {
 			open_fee: OPEN_FEE,
 			max_gomoku_player: MAX_GOMOKU_PLAYER,
+		},
+		pool: PoolConfig {
+			mark_block: 3600u32,
 		},
 	}
 }
