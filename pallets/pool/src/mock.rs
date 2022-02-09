@@ -127,20 +127,25 @@ impl Default for ExtBuilder {
 }
 
 impl ExtBuilder {
-	pub fn build_and_execute(self, test: impl FnOnce() -> ()) -> sp_io::TestExternalities{
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-		pallet_balances::GenesisConfig::<Test> { balances: self.balances }
-			.assimilate_storage(&mut t)
-			.unwrap();
+	fn build(self) -> sp_io::TestExternalities {
+		let mut storage = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-		pallet_pool::GenesisConfig::<Test> {
-			pool_fee: self.pool_fee,
+		let _ = pallet_balances::GenesisConfig::<Test> {
+			balances: self.balances,
+		}.assimilate_storage(&mut storage);
+
+		let _ = pallet_pool::GenesisConfig::<Test> {
 			mark_block: self.mark_block,
-		};
-		
+			pool_fee: self.pool_fee,
+		}.assimilate_storage(&mut storage);
 
-		let mut ext = sp_io::TestExternalities::new(t);
-		ext.execute_with(|| System::set_block_number(1));
+		let mut ext = sp_io::TestExternalities::from(storage);
 		ext
+	}
+
+	pub fn build_and_execute(self, test: impl FnOnce() -> ()) {
+		let mut ext = self.build();
+		ext.execute_with(test);
+		ext.execute_with(|| System::set_block_number(1));
 	}
 }

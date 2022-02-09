@@ -16,6 +16,7 @@ pub mod pallet {
 		pallet_prelude::*,
 		sp_runtime::{
 			traits::{Hash, Zero},
+			Storage,
 		},
 		traits::{
 			tokens::{ExistenceRequirement, WithdrawReasons},
@@ -103,6 +104,24 @@ pub mod pallet {
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
 			<MarkBlock<T>>::put(self.mark_block);
+			<PoolFee<T>>::put(self.pool_fee);
+		}
+	}
+
+	#[cfg(feature = "std")]
+	impl<T: Config> GenesisConfig<T> {
+		/// Direct implementation of `GenesisBuild::build_storage`.
+		///
+		/// Kept in order not to break dependency.
+		pub fn build_storage(&self) -> Result<Storage, String> {
+			<Self as GenesisBuild<T>>::build_storage(self)
+		}
+
+		/// Direct implementation of `GenesisBuild::assimilate_storage`.
+		///
+		/// Kept in order not to break dependency.
+		pub fn assimilate_storage(&self, storage: &mut Storage) -> Result<(), String> {
+			<Self as GenesisBuild<T>>::assimilate_storage(self, storage)
 		}
 	}
 
