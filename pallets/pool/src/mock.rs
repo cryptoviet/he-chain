@@ -110,30 +110,37 @@ pub fn run_to_block(n: u64) {
 	}
 }
 
-pub struct ExtBuilder;
+pub struct ExtBuilder {
+	balances: Vec<(AccountId32, u64)>,
+	pool_fee: u64,
+	mark_block: u32,
+}
 
-// impl ExtBuilder {
-// 	pub fn build(self) -> sp_io::TestExternalities {
-// 		let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
-// 		let mut ext = sp_io::TestExternalities::new(t);
-// 		ext.execute_with(|| System::set_block_number(1));
-// 		ext
-// 	}
-// }
+impl Default for ExtBuilder {
+	fn default() -> Self {
+		Self {
+			balances: vec![(ALICE, 1000000000), (BOB, 1000000000)],
+			pool_fee: 1_000_000u64,
+			mark_block: 3600u32,
+		}
+	}
+}
 
 impl ExtBuilder {
-	pub fn build(self) -> sp_io::TestExternalities {
+	pub fn build_and_execute(self, test: impl FnOnce() -> ()) -> sp_io::TestExternalities{
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-		pallet_balances::GenesisConfig::<Test> {
-			balances: vec![(ALICE, 1000000000), (BOB, 1000000000)],
-		}
-		.assimilate_storage(&mut t)
-		.unwrap();
+		pallet_balances::GenesisConfig::<Test> { balances: self.balances }
+			.assimilate_storage(&mut t)
+			.unwrap();
 
+		pallet_pool::GenesisConfig::<Test> {
+			pool_fee: self.pool_fee,
+			mark_block: self.mark_block,
+		};
+		
 
 		let mut ext = sp_io::TestExternalities::new(t);
 		ext.execute_with(|| System::set_block_number(1));
 		ext
-
 	}
 }

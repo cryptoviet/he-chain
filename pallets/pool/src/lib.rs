@@ -137,6 +137,9 @@ pub mod pallet {
 
 		pub fn charge_join_pool(sender: &T::AccountId) -> DispatchResult {
 			let pool_fee = Self::pool_fee();
+
+			println!("fee: {:?}", pool_fee);
+
 			let withdraw = T::Currency::withdraw(
 				&sender,
 				pool_fee,
