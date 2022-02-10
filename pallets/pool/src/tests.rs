@@ -11,7 +11,7 @@ fn player_join_pool_should_works() {
 		assert_ok!(PalletPool::join(Origin::signed(ALICE)));
 		run_to_block(100);
 		let balance_after = <Test as Config>::Currency::free_balance(&ALICE);
-		assert_eq!(balance_before, balance_after + POOL_FEE, "charge pool fee not correct");
+		assert_eq!(balance_before, balance_after + POOL_FEE * 2, "charge pool fee not correct");
 	});
 }
 
@@ -25,7 +25,7 @@ fn player_join_pool_should_fail() {
 			let balance_before = <Test as Config>::Currency::free_balance(&ALICE);
 			assert_ok!(PalletPool::join(Origin::signed(ALICE)));
 			let balance_after = <Test as Config>::Currency::free_balance(&ALICE);
-			assert_eq!(balance_before, balance_after + POOL_FEE, "charge pool fee not correct");
+			assert_eq!(balance_before, balance_after + POOL_FEE * 2, "charge pool fee not correct");
 		}
 
 		{
