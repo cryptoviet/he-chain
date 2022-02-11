@@ -20,10 +20,10 @@ use sp_runtime::{
 use frame_system::pallet_prelude::*;
 use sp_io::hashing::blake2_128;
 
-pub use pallet::*;
-pub use pallet_player::PlayerOwned;
 #[cfg(feature = "std")]
 use frame_support::traits::GenesisBuild;
+pub use pallet::*;
+pub use pallet_player::PlayerOwned;
 
 // #[cfg(test)]
 // mod mock;
@@ -34,8 +34,6 @@ use frame_support::traits::GenesisBuild;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::pallet_prelude::*;
-	use frame_system::pallet_prelude::*;
 
 	type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -91,12 +89,20 @@ pub mod pallet {
 	}
 
 	/*
-		1. Charge player in the
+		1. Charge player in the IngamePlayers
+			1.1 Kick player when they can't pay
+		2. Move all players from NewPlayer to IngamePlayers
 	*/
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(block_number: BlockNumberFor<T>) {
 			let mark_block = Self::mark_block();
+
+			if (block_number % mark_block.into()).is_zero() {
+				let _ = Self::charge_ingame();
+
+				let _ = Self::move_newplayers_to_ingame();
+			}
 		}
 	}
 
@@ -154,8 +160,6 @@ pub mod pallet {
 		}
 	}
 
-
-
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(100)]
@@ -182,15 +186,13 @@ pub mod pallet {
 		fn join_pool(sender: T::AccountId) -> Result<(), Error<T>> {
 			// make sure player not re-join
 			ensure!(Self::players(sender.clone()) == None, <Error<T>>::PlayerAlreadyJoin);
-			
 			// make sure not exceed max players
-			let new_player_count = Self::player_count().checked_add(1).ok_or(<Error<T>>::PlayerCountOverflow)?;
+			let new_player_count =
+				Self::player_count().checked_add(1).ok_or(<Error<T>>::PlayerCountOverflow)?;
 			ensure!(new_player_count <= Self::max_player(), <Error<T>>::ExceedMaxPlayer);
 			// make sure not exceed max new players
-			<NewPlayers<T>>::try_mutate(|newplayers| {
-				newplayers.try_push(sender.clone())
-			}).map_err(|_| <Error<T>>::ExceedMaxNewPlayer)?;
-			
+			<NewPlayers<T>>::try_mutate(|newplayers| newplayers.try_push(sender.clone()))
+				.map_err(|_| <Error<T>>::ExceedMaxNewPlayer)?;
 			let block_number = <frame_system::Pallet<T>>::block_number();
 			let player = Player::<T> { address: sender.clone(), join_block: block_number };
 			<Players<T>>::insert(sender, player);
@@ -220,13 +222,16 @@ pub mod pallet {
 			Remove player from storage Players and PlayerOwned
 		*/
 		fn kick_player(player: &T::AccountId) -> Result<(), Error<T>> {
-			// <Players<T>>::try_mutate(player, |owned| {
-			// 	if let Some(ind) = owned.iter().position(|p| p.address == *player) {
-			// 		if let Some
-			// 	}
-			// 	Err(())
-			// }).map_err(|| <Error<T>>::PlayerOwnedNotFound);
+			
+			Ok(())
+		}
 
+		fn charge_ingame() -> Result<(), Error<T>> {
+			Ok(())
+		}
+
+		fn move_newplayers_to_ingame() -> Result<(), Error<T>> {
+		
 			Ok(())
 		}
 	}
