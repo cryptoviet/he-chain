@@ -82,15 +82,17 @@ impl system::Config for Test {
 	type OnSetCode = ();
 }
 
+
 parameter_types! {
-	pub const MaxPoolPlayer: u32 = 1000;
+	pub const MaxNewPlayer: u32 = 600;
+	pub const MaxIngamePlayer: u32 = 600;
 }
 
 impl pallet_pool::Config for Test {
 	type Event = Event;
 	type Currency = Balances;
-	type MaxPoolPlayer = MaxPoolPlayer;
-	// type GameRandomness = RandomnessCollectiveFlip;
+	type MaxNewPlayer = MaxNewPlayer;
+	type MaxIngamePlayer = MaxIngamePlayer;
 }
 
 // Build genesis storage according to the mock runtime.
@@ -114,6 +116,7 @@ pub struct ExtBuilder {
 	balances: Vec<(AccountId32, u64)>,
 	pool_fee: u64,
 	mark_block: u32,
+	max_player: u32,
 }
 
 impl Default for ExtBuilder {
@@ -122,6 +125,7 @@ impl Default for ExtBuilder {
 			balances: vec![(ALICE, 1000000000), (BOB, 1000000000)],
 			pool_fee: 1_000_000u64,
 			mark_block: 3600u32,
+			max_player: 1000u32,
 		}
 	}
 }
@@ -137,6 +141,7 @@ impl ExtBuilder {
 		let _ = pallet_pool::GenesisConfig::<Test> {
 			mark_block: self.mark_block,
 			pool_fee: self.pool_fee,
+			max_player: self.max_player,
 		}.assimilate_storage(&mut storage);
 
 		let mut ext = sp_io::TestExternalities::from(storage);

@@ -25,11 +25,11 @@ use frame_support::traits::GenesisBuild;
 pub use pallet::*;
 pub use pallet_player::PlayerOwned;
 
-// #[cfg(test)]
-// mod mock;
+#[cfg(test)]
+mod mock;
 
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -60,9 +60,6 @@ pub mod pallet {
 		type Currency: Currency<Self::AccountId>;
 
 		#[pallet::constant]
-		type MaxPlayer: Get<u32>;
-
-		#[pallet::constant]
 		type MaxNewPlayer: Get<u32>;
 
 		#[pallet::constant]
@@ -78,6 +75,7 @@ pub mod pallet {
 		PlayerCountOverflow,
 		ExceedMaxPlayer,
 		ExceedMaxNewPlayer,
+		CanNotClearNewPlayers,
 		ExceedMaxIngamePlayer,
 	}
 
@@ -101,7 +99,7 @@ pub mod pallet {
 			if (block_number % mark_block.into()).is_zero() {
 				let _ = Self::charge_ingame();
 
-				let _ = Self::move_newplayers_to_ingame();
+				let _ = Self::move_newplayer_to_ingame();
 			}
 		}
 	}
@@ -222,16 +220,30 @@ pub mod pallet {
 			Remove player from storage Players and PlayerOwned
 		*/
 		fn kick_player(player: &T::AccountId) -> Result<(), Error<T>> {
-			
 			Ok(())
 		}
 
 		fn charge_ingame() -> Result<(), Error<T>> {
+			let ingame_players: Vec<T::AccountId> = Self::new_players().into_inner();
+			for player in ingame_players {
+				match Self::change_fee(&player, Self::pool_fee()) {
+					Ok(_) => {},
+					Err(_) => {},
+				}
+			}
 			Ok(())
 		}
 
-		fn move_newplayers_to_ingame() -> Result<(), Error<T>> {
-		
+
+		fn move_newplayer_to_ingame() -> Result<(), Error<T>> {
+			let new_players: Vec<T::AccountId> = Self::new_players().into_inner();
+			for new_player in new_players {
+				<IngamePlayers<T>>::try_append(new_player)
+					.map_err(|_| <Error<T>>::ExceedMaxNewPlayer)?;
+			}
+
+			<NewPlayers<T>>::kill();
+
 			Ok(())
 		}
 	}
