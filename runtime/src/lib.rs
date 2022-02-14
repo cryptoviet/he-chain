@@ -304,7 +304,6 @@ impl pallet_player::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxPlayer: u32 = 1000;
 	pub const MaxNewPlayer: u32 = 600;
 	pub const MaxIngamePlayer: u32 = 600;
 }
@@ -312,7 +311,6 @@ parameter_types! {
 impl pallet_pool::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
-	type MaxPlayer = MaxPlayer;
 	type MaxNewPlayer = MaxNewPlayer;
 	type MaxIngamePlayer = MaxIngamePlayer;
 }

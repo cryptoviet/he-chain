@@ -2,7 +2,10 @@ use crate as pallet_pool;
 use frame_support::parameter_types;
 use frame_system as system;
 
-use frame_support::traits::{Currency, OnFinalize, OnInitialize};
+use frame_support::{
+	traits::{Currency, OnFinalize, OnInitialize},
+	dispatch::{Vec},
+};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,

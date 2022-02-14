@@ -73,3 +73,4 @@ fn should_move_newplayers_to_ingame() {
 		}
 	})
 }
+

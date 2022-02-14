@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::{
-	dispatch::{DispatchResult, DispatchResultWithPostInfo},
+	dispatch::{DispatchResult, DispatchResultWithPostInfo, Vec},
 	pallet_prelude::*,
 	traits::{
 		tokens::{ExistenceRequirement, WithdrawReasons},
@@ -145,7 +145,7 @@ pub mod pallet {
 	#[cfg(feature = "std")]
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
-			Self { max_player: 1000, mark_block: 1200, pool_fee: 1000000u32.into() }
+			Self { max_player: 1000, mark_block: 30, pool_fee: 1000000u32.into() }
 		}
 	}
 
@@ -217,9 +217,17 @@ pub mod pallet {
 		}
 
 		/*
-			Remove player from storage Players and PlayerOwned
+			
 		*/
-		fn kick_player(player: &T::AccountId) -> Result<(), Error<T>> {
+		fn kick_ingame_player(player: &T::AccountId) -> Result<(), Error<T>> {
+			<Players<T>>::remove(player);
+			<IngamePlayers<T>>::try_mutate(|players| {
+				if let Some(ind) = players.iter().position(|id| id == player) {
+					players.swap_remove(ind);
+					return Ok(());
+				}
+				Err(())
+			}).map_err(|_| <Error<T>>::PlayerNotFound)?;
 			Ok(())
 		}
 
@@ -228,7 +236,9 @@ pub mod pallet {
 			for player in ingame_players {
 				match Self::change_fee(&player, Self::pool_fee()) {
 					Ok(_) => {},
-					Err(_) => {},
+					Err(_) => {
+						let _ = Self::kick_ingame_player(&player);
+					},
 				}
 			}
 			Ok(())
@@ -241,9 +251,7 @@ pub mod pallet {
 				<IngamePlayers<T>>::try_append(new_player)
 					.map_err(|_| <Error<T>>::ExceedMaxNewPlayer)?;
 			}
-
 			<NewPlayers<T>>::kill();
-
 			Ok(())
 		}
 	}
