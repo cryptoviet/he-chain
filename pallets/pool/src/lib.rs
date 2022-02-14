@@ -145,7 +145,7 @@ pub mod pallet {
 	#[cfg(feature = "std")]
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
-			Self { max_player: 1000, mark_block: 30, pool_fee: 1000000u32.into() }
+			Self { max_player: 1000, mark_block: 30, pool_fee: Default::default() }
 		}
 	}
 
@@ -232,7 +232,7 @@ pub mod pallet {
 		}
 
 		fn charge_ingame() -> Result<(), Error<T>> {
-			let ingame_players: Vec<T::AccountId> = Self::new_players().into_inner();
+			let ingame_players: Vec<T::AccountId> = Self::ingame_players().into_inner();
 			for player in ingame_players {
 				match Self::change_fee(&player, Self::pool_fee()) {
 					Ok(_) => {},

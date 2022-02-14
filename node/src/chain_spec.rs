@@ -131,8 +131,12 @@ fn testnet_genesis(
 	_enable_println: bool,
 ) -> GenesisConfig {
 
+	// Gomoku config
 	const OPEN_FEE: Balance = 10000000000000000;
 	const MAX_GOMOKU_PLAYER: u8 = 2u8;
+
+	// Pool config
+	const POOL_FEE: Balance = 10000000000000000;
 
 	GenesisConfig {
 		system: SystemConfig {
@@ -160,7 +164,7 @@ fn testnet_genesis(
 		},
 		pool: PoolConfig {
 			mark_block: 30u32,
-			pool_fee: 1_000_000_000u32.into(),
+			pool_fee: POOL_FEE,
 			max_player: 1000u32,
 		},
 	}

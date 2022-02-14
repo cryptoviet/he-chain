@@ -1,8 +1,8 @@
 use crate::{mock::*, Config, Error};
 use frame_support::{assert_err, assert_ok, traits::Currency};
 
-const POOL_FEE: u64 = 1_000_000;
-const MARK_BLOCK: u64 = 3600;
+const POOL_FEE: u64 = 10000000000000000u64;
+const MARK_BLOCK: u64 = 30;
 
 #[test]
 fn player_join_pool_should_works() {
@@ -10,7 +10,6 @@ fn player_join_pool_should_works() {
 		run_to_block(10);
 		let balance_before = <Test as Config>::Currency::free_balance(&ALICE);
 		assert_ok!(PalletPool::join(Origin::signed(ALICE)));
-		run_to_block(100);
 		let balance_after = <Test as Config>::Currency::free_balance(&ALICE);
 		assert_eq!(balance_before, balance_after + POOL_FEE * 2, "charge pool fee not correct");
 	});
@@ -20,7 +19,6 @@ fn player_join_pool_should_works() {
 fn player_join_pool_should_fail() {
 	ExtBuilder::default().build_and_execute(|| {
 		run_to_block(10);
-		let _ = <Test as Config>::Currency::deposit_creating(&ALICE, 1_000_000);
 		{
 			let balance_before = <Test as Config>::Currency::free_balance(&ALICE);
 			assert_ok!(PalletPool::join(Origin::signed(ALICE)));
@@ -41,7 +39,6 @@ fn player_join_pool_should_fail() {
 fn should_move_newplayers_to_ingame() {
 	ExtBuilder::default().build_and_execute(|| {
 		run_to_block(10);
-		let _ = <Test as Config>::Currency::deposit_creating(&ALICE, 1_000_000);
 		{
 			let balance_before = <Test as Config>::Currency::free_balance(&ALICE);
 			assert_ok!(PalletPool::join(Origin::signed(ALICE)));
@@ -59,7 +56,7 @@ fn should_move_newplayers_to_ingame() {
 
 		{
 			let balance_before = <Test as Config>::Currency::free_balance(&ALICE);
-			run_to_block(MARK_BLOCK + 1);
+			run_to_block((MARK_BLOCK * 2) + 1);
 			let balance_after = <Test as Config>::Currency::free_balance(&ALICE);
 			assert_eq!(balance_before, balance_after + POOL_FEE, "charge ingame players pool fee not correct");
 		}
@@ -73,4 +70,3 @@ fn should_move_newplayers_to_ingame() {
 		}
 	})
 }
-

@@ -125,9 +125,9 @@ pub struct ExtBuilder {
 impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
-			balances: vec![(ALICE, 1000000000), (BOB, 1000000000)],
-			pool_fee: 1_000_000u64,
-			mark_block: 3600u32,
+			balances: vec![(ALICE, 1000000000000000000), (BOB, 1000000000000000000)],
+			pool_fee: 10000000000000000u64,
+			mark_block: 30u32,
 			max_player: 1000u32,
 		}
 	}
