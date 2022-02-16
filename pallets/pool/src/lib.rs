@@ -223,8 +223,8 @@ pub mod pallet {
 				let join_block = player.join_block;
 				let block_number = Self::get_block_number();
 				let refund_fee: BalanceOf<T>;
-
 				let range_block = block_number - join_block;
+
 				if range_block < Self::mark_block() {
 					<NewPlayers<T>>::try_mutate(|players| {
 						if let Some(ind) = players.iter().position(|id| id == sender) {
@@ -233,7 +233,6 @@ pub mod pallet {
 						Ok(())
 					})
 					.map_err(|_: Error<T>| <Error<T>>::PlayerNotFound)?;
-
 					refund_fee = Self::pool_fee();
 				} else {
 					<IngamePlayers<T>>::try_mutate(|players| {
@@ -243,13 +242,12 @@ pub mod pallet {
 						Ok(())
 					})
 					.map_err(|_: Error<T>| <Error<T>>::PlayerNotFound)?;
-
 					refund_fee = Self::calculate_ingame_refund_amount(join_block, block_number)?;
 				}
-
+				<Players<T>>::remove(sender);
 				let _ = T::Currency::deposit_into_existing(sender, refund_fee);
 			} else {
-				return Err(<Error<T>>::PlayerNotFound)
+				return Err(<Error<T>>::PlayerNotFound);
 			}
 			Ok(())
 		}
@@ -263,10 +261,10 @@ pub mod pallet {
 			if let Some(fee) = Self::balance_to_u64(Self::pool_fee()) {
 				let actual_fee = fee * (Self::mark_block() - extra) / Self::mark_block();
 				if let Some(result) = Self::u64_to_balance(actual_fee) {
-					return Ok(result)
+					return Ok(result);
 				}
 			}
-			return Err(<Error<T>>::CanNotCalculateRefundFee)
+			return Err(<Error<T>>::CanNotCalculateRefundFee);
 		}
 
 		/*
@@ -328,9 +326,9 @@ pub mod pallet {
 		pub fn get_block_number() -> u64 {
 			let block_number = <frame_system::Pallet<T>>::block_number();
 			if let Some(block) = Self::block_to_u64(block_number) {
-				return block
+				return block;
 			}
-			return 0u64
+			return 0u64;
 		}
 	}
 }

@@ -138,3 +138,20 @@ fn leave_pool_should_work() {
 		})
 	}
 }
+
+#[test]
+fn leave_pool_should_fail() {
+	ExtBuilder::default().build_and_execute(|| {
+		run_to_block(10);
+		{
+			let balance_before = <Test as Config>::Currency::free_balance(&ALICE);
+			assert_ok!(PalletPool::join(Origin::signed(ALICE)));
+			let balance_after = <Test as Config>::Currency::free_balance(&ALICE);
+			assert_eq!(balance_before, balance_after + POOL_FEE * 2, "charge pool fee not correct");
+		}
+		run_to_block(20);
+		assert_ok!(PalletPool::leave(Origin::signed(ALICE)));
+		run_to_block(20);
+		assert_err!(PalletPool::leave(Origin::signed(ALICE)), <Error<Test>>::PlayerNotFound);
+	})
+}
