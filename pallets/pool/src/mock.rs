@@ -21,6 +21,10 @@ type Block = frame_system::mocking::MockBlock<Test>;
 pub const ALICE: AccountId32 = AccountId32::new([1u8; 32]);
 pub const BOB: AccountId32 = AccountId32::new([2u8; 32]);
 
+const POOL_FEE: u64 = 10000000000000000;
+const MARK_BLOCK: u64 = 30;
+const MAX_PLAYER: u32 = 1000;
+
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -118,7 +122,7 @@ pub fn run_to_block(n: u64) {
 pub struct ExtBuilder {
 	balances: Vec<(AccountId32, u64)>,
 	pool_fee: u64,
-	mark_block: u32,
+	mark_block: u64,
 	max_player: u32,
 }
 
@@ -126,8 +130,8 @@ impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
 			balances: vec![(ALICE, 1000000000000000000), (BOB, 1000000000000000000)],
-			pool_fee: 10000000000000000u64,
-			mark_block: 30u32,
+			pool_fee: POOL_FEE,
+			mark_block: MARK_BLOCK,
 			max_player: 1000u32,
 		}
 	}

@@ -25,11 +25,11 @@ use frame_support::traits::GenesisBuild;
 pub use pallet::*;
 pub use pallet_player::PlayerOwned;
 
-// #[cfg(test)]
-// mod mock;
+#[cfg(test)]
+mod mock;
 
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -244,7 +244,7 @@ pub mod pallet {
 					})
 					.map_err(|_: Error<T>| <Error<T>>::PlayerNotFound)?;
 
-					refund_fee = Self::calculate_refund_amount(join_block, block_number)?;
+					refund_fee = Self::calculate_ingame_refund_amount(join_block, block_number)?;
 				}
 
 				let _ = T::Currency::deposit_into_existing(sender, refund_fee);
@@ -254,14 +254,14 @@ pub mod pallet {
 			Ok(())
 		}
 
-		fn calculate_refund_amount(
+		pub fn calculate_ingame_refund_amount(
 			join_block: u64,
 			block_number: u64,
 		) -> Result<BalanceOf<T>, Error<T>> {
 			let range_block = block_number - join_block;
 			let extra = range_block % Self::mark_block();
 			if let Some(fee) = Self::balance_to_u64(Self::pool_fee()) {
-				let actual_fee = fee + fee * ((1u64 - extra / Self::mark_block()) * 100u64);
+				let actual_fee = fee * (Self::mark_block() - extra) / Self::mark_block();
 				if let Some(result) = Self::u64_to_balance(actual_fee) {
 					return Ok(result)
 				}

@@ -137,6 +137,8 @@ fn testnet_genesis(
 
 	// Pool config
 	const POOL_FEE: Balance = 10000000000000000;
+	const MARK_BLOCK: u64 = 30;
+	const MAX_PLAYER: u32 = 1000;
 
 	GenesisConfig {
 		system: SystemConfig {
@@ -163,9 +165,9 @@ fn testnet_genesis(
 			max_gomoku_player: MAX_GOMOKU_PLAYER,
 		},
 		pool: PoolConfig {
-			mark_block: 30u64,
+			mark_block: MARK_BLOCK,
 			pool_fee: POOL_FEE,
-			max_player: 1000u32,
+			max_player: MAX_PLAYER,
 		},
 	}
 }
