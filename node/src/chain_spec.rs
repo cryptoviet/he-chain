@@ -163,7 +163,7 @@ fn testnet_genesis(
 			max_gomoku_player: MAX_GOMOKU_PLAYER,
 		},
 		pool: PoolConfig {
-			mark_block: 30u32,
+			mark_block: 30u64,
 			pool_fee: POOL_FEE,
 			max_player: 1000u32,
 		},
