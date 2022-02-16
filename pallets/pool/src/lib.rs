@@ -212,8 +212,38 @@ pub mod pallet {
 			}
 		}
 
-		fn leave_pool(sender: &T::AccountId) -> Result<(), Error<T>> {
+		pub fn refund_fee(sender: T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
+			// let _ = T::Currency::deposit_into_existing(sender, amount);
 			Ok(())
+		}
+
+		/*
+			1. Calculate fee to refund
+			2. Remove sender from Players and NewPlayers/IngamePlayers
+		*/
+		fn leave_pool(sender: &T::AccountId) -> Result<(), Error<T>> {
+			if let Some(player) = Self::players(sender) {
+				let join_block = player.join_block;
+				
+
+			} else {
+				return Err(<Error<T>>::PlayerNotFound);
+			}
+			Ok(())
+		}
+
+		fn calculate_refund_amount(join_block: T::BlockNumber) -> BalanceOf<T> {
+			let block_number = <frame_system::Pallet<T>>::block_number();
+			let range_block = block_number - join_block;
+			if range_block  < Self::mark_block().into() {
+				return Self::pool_fee();
+			} else {
+				let remain = range_block % Self::mark_block().into();
+
+				let left = Self::mark_block.into() - remain;
+
+				return Self::pool_fee();
+			}
 		}
 
 		/*
