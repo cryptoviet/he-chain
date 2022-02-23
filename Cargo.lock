@@ -3576,6 +3576,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-he-evm"
+version = "0.0.1-dev"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-randomness-collective-flip",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
 name = "pallet-player"
 version = "0.0.1-dev"
 dependencies = [
