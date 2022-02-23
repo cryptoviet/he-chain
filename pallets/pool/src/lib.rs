@@ -23,7 +23,6 @@ use sp_io::hashing::blake2_128;
 #[cfg(feature = "std")]
 use frame_support::traits::GenesisBuild;
 pub use pallet::*;
-pub use pallet_player::PlayerOwned;
 
 #[cfg(test)]
 mod mock;

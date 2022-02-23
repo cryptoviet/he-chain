@@ -41,7 +41,6 @@ pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
 
 /// Import your pallets.
-pub use pallet_gomoku;
 pub use pallet_player;
 pub use pallet_pool;
 
@@ -276,27 +275,6 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
-parameter_types! {
-	pub const MaxGomokuPlayer: u32 = 2;
-	pub const MaxGame: u32 = 10;
-	pub const MaxOpenGame: u32 = 10;
-	pub const MaxStartGame: u32 = 10;
-	pub const OpenGameFee: u32 = 1000000000u32;
-	pub const MaxEndedGame: u32 = 1000000000u32;
-}
-
-impl pallet_gomoku::Config for Runtime {
-	type Event = Event;
-	type Currency = Balances;
-	type MaxGomokuPlayer = MaxGomokuPlayer;
-	type MaxGame = MaxGame;
-	type MaxOpenGame = MaxOpenGame;
-	type MaxStartGame = MaxStartGame;
-	type OpenGameFee = OpenGameFee;
-	type MaxEndedGame = MaxEndedGame;
-	type GameRandomness = RandomnessCollectiveFlip;
-}
-
 impl pallet_player::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
@@ -331,8 +309,7 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
 		// Include the custom logic from the pallet-template in the runtime.
-		Gomoku: pallet_gomoku,
-		Game: pallet_player,
+		Player: pallet_player,
 		Pool: pallet_pool,
 	}
 );
@@ -512,7 +489,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, frame_system, SystemBench::<Runtime>);
 			list_benchmark!(list, extra, pallet_balances, Balances);
 			list_benchmark!(list, extra, pallet_timestamp, Timestamp);
-			list_benchmark!(list, extra, pallet_player, TemplateModule);
+			// list_benchmark!(list, extra, pallet_player, TemplateModule);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -550,7 +527,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
 			add_benchmark!(params, batches, pallet_balances, Balances);
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
-			add_benchmark!(params, batches, pallet_player, TemplateModule);
+			// add_benchmark!(params, batches, pallet_player, TemplateModule);
 
 			Ok(batches)
 		}

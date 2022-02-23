@@ -1,6 +1,6 @@
 use node_template_runtime::{
 	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, Signature, SudoConfig,
-	SystemConfig, WASM_BINARY, Balance, GomokuConfig, PoolConfig
+	SystemConfig, WASM_BINARY, Balance, PoolConfig
 };
 use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -30,6 +30,7 @@ where
 {
 	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
+
 
 /// Generate an Aura authority key.
 pub fn authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
@@ -131,10 +132,6 @@ fn testnet_genesis(
 	_enable_println: bool,
 ) -> GenesisConfig {
 
-	// Gomoku config
-	const OPEN_FEE: Balance = 10000000000000000;
-	const MAX_GOMOKU_PLAYER: u8 = 2u8;
-
 	// Pool config
 	const POOL_FEE: Balance = 10000000000000000;
 	const MARK_BLOCK: u64 = 30;
@@ -160,10 +157,6 @@ fn testnet_genesis(
 			key: root_key,
 		},
 		transaction_payment: Default::default(),
-		gomoku: GomokuConfig {
-			open_fee: OPEN_FEE,
-			max_gomoku_player: MAX_GOMOKU_PLAYER,
-		},
 		pool: PoolConfig {
 			mark_block: MARK_BLOCK,
 			pool_fee: POOL_FEE,
